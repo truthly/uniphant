@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style>
+.error {
+  background-color: #ffaaaa;
+}
+.pre {
+    white-space: pre;
+    font-family: monospace;
+    display: block;
+    unicode-bidi: embed
+}
+#signedInDiv {
+  float:right;
+  margin-right:10px;
+  clear:both;
+}
+</style>
+</head>
+<body>
+<div id="signedInDiv"></div>
+<input placeholder="username" type="text" id="username" autofocus required />
+<input placeholder="display_name" type="text" id="display_name" required />
+<button id="sign_up">Sign up</button>
+<button id="sign_in">Sign in</button>
+<button id="sign_out">Sign out</button>
+<div class="pre" id="log"></div>
+</head>
+<body>
+<script type="text/javascript" src="base64.js"></script>
+<script>
+
+  // Most code in this file is based on: https://webauthn.io/dist/js/webauthn.js
+
+  function buffer_decode(value) {
+    let new_value = (value + '==='.slice((value.length + 3) % 4))
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+    return Uint8Array.from(atob(new_value), c => c.charCodeAt(0));
+  }
+
+  // Encode an ArrayBuffer into a base64url string.
+  function buffer_encode(value) {
+      return base64js.fromByteArray(value)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
+  }
+
+  function status(response) {
+    if (response.status >= 200 && response.status < 300) {
+      return Promise.resolve(response)
+    } else {
+      return Promise.reject(new Error(response.statusText))
+    }
+  }
+
+  function json(response) {
+    return response.json()
+  }
+
+  function sign_up() {
+    if (document.getElementById("username").value === "") {
+      document.getElementById("log").innerHTML += "please enter a username\n";
+      document.getElementById("username").focus();
+      return;
+    }
+    if (document.getElementById("display_name").value === "") {
+      document.getElementById("log").innerHTML += "please enter a display_name\n";
+      document.getElementById("display_name").focus();
+      return;
+    }
+    document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
+    fetch("/api/rpc/init_credential", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+          "username" : document.getElementById("username").value,
+          "display_name" : document.getElementById("display_name").value
+      })
+    }).then(status).then(json).then(function(make_credential_options) {
+      console.log(make_credential_options);
+      document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
+      // base64 values needs to be decoded to Uint8Arrays:
+      make_credential_options.publicKey.challenge = buffer_decode(make_credential_options.publicKey.challenge);
+      make_credential_options.publicKey.user.id = buffer_decode(make_credential_options.publicKey.user.id);
+      if (make_credential_options.publicKey.excludeCredentials) {
+        for (var i = 0; i < make_credential_options.publicKey.excludeCredentials.length; i++) {
+          make_credential_options.publicKey.excludeCredentials[i].id = buffer_decode(make_credential_options.publicKey.excludeCredentials[i].id);
+        }
+      }
+      document.getElementById("log").innerHTML += "navigator.credentials.create()\n";
+      navigator.credentials.create(make_credential_options).then(function (new_credential) {
+        document.getElementById("log").innerHTML += "navigator.credentials.create() ok\n";
+        make_credential(new_credential, make_credential_options.publicKey.challenge);
+      }).catch(function (err) {
+        document.getElementById("log").innerHTML += "navigator.credentials.create() error\n";
+      });
+    }).catch(function(error) {
+      document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
+    });
+  }
+
+  function make_credential(new_credential) {
+    let attestation_object = new Uint8Array(new_credential.response.attestationObject);
+    let client_data_json = new Uint8Array(new_credential.response.clientDataJSON);
+    let raw_id = new Uint8Array(new_credential.rawId);
+    document.getElementById("log").innerHTML += "POST /api/rpc/make_credential\n";
+    fetch("/api/rpc/make_credential", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+          "credential_id" : buffer_encode(raw_id),
+          "credential_type" : new_credential.type,
+          "attestation_object" : buffer_encode(attestation_object),
+          "client_data_json" : buffer_encode(client_data_json)
+      })
+    }).then(status).then(json).then(function(status) {
+      if (status) {
+        document.getElementById("log").innerHTML += "POST /api/rpc/make_credential ok\n";
+        document.getElementById("username").value = "";
+        document.getElementById("display_name").value = "";
+        document.getElementById("log").innerHTML += "✅ please go ahead and try your first username-less login\n";
+        document.getElementById("sign_in").focus();
+      } else {
+        document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
+      }
+    });
+  }
+
+  function sign_in() {
+    document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials\n";
+    fetch("/api/rpc/get_credentials", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({})
+    }).then(status).then(json).then(function(make_assertion_options) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials ok\n";
+      make_assertion_options.publicKey.challenge = buffer_decode(make_assertion_options.publicKey.challenge);
+      console.log(make_assertion_options.publicKey);
+      if (make_assertion_options.publicKey.allowCredentials) {
+        make_assertion_options.publicKey.allowCredentials.forEach(function (list_item) {
+          list_item.id = buffer_decode(list_item.id)
+        });
+      }
+      document.getElementById("log").innerHTML += "navigator.credentials.get()\n";
+      navigator.credentials.get({
+        publicKey: make_assertion_options.publicKey
+      })
+      .then(function (asserted_credential) {
+        document.getElementById("log").innerHTML += "navigator.credentials.get() ok\n";
+        verify_assertion(asserted_credential);
+      }).catch(function (err) {
+        console.log(err);
+        document.getElementById("log").innerHTML += "navigator.credentials.get() error\n";
+      });
+    }).catch(function (err) {
+      console.log(err);
+      document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials error\n";
+    });
+  }
+
+  function verify_assertion(asserted_credential) {
+    let authenticator_data = new Uint8Array(asserted_credential.response.authenticatorData);
+    let client_data_json = new Uint8Array(asserted_credential.response.clientDataJSON);
+    let credential_raw_id = new Uint8Array(asserted_credential.rawId);
+    let signature = new Uint8Array(asserted_credential.response.signature);
+    let user_handle = new Uint8Array(asserted_credential.response.userHandle);
+    document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion\n";
+    fetch("/api/rpc/verify_assertion", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+        "credential_id" : buffer_encode(credential_raw_id),
+        "credential_type" : asserted_credential.type,
+        "authenticator_data" : buffer_encode(authenticator_data),
+        "client_data_json" : buffer_encode(client_data_json),
+        "signature" : buffer_encode(signature),
+        "user_handle" : buffer_encode(user_handle)
+      })
+    }).then(status).then(json).then(function(token) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion ok\n";
+      if (token === null) {
+        document.getElementById("log").innerHTML += "❌ sign in failed\n";
+      } else {
+        document.getElementById("log").innerHTML += `✅ signed in, got access token: ${token}\n`;
+      }
+      is_signed_in();
+    }).catch(function (err) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion error\n";
+    });
+  }
+
+  function is_signed_in() {
+    fetch("/api/rpc/is_signed_in", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({})
+    }).then(status).then(json).then(function(username) {
+      if (username === null) {
+        document.getElementById("signedInDiv").innerHTML = "";
+      } else {
+        document.getElementById("signedInDiv").innerHTML = `✅ signed in as ${username}`;
+      }
+    }).catch(function(error) {
+      document.getElementById("log").innerHTML += `POST /api/rpc/is_signed_in error: ${error}\n`;
+    });
+  }
+
+  function sign_out() {
+    document.getElementById("log").innerHTML += "POST /api/rpc/sign_out\n";
+    fetch("/api/rpc/sign_out", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({})
+    }).then(status).then(json).then(function(ok) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/sign_out ok\n";
+      is_signed_in();
+    }).catch(function (err) {
+      console.log(err);
+      document.getElementById("log").innerHTML += "POST /api/rpc/sign_out error\n";
+    });
+  }
+
+
+  document.getElementById("sign_up").addEventListener("click", sign_up);
+  document.getElementById("sign_in").addEventListener("click", sign_in);
+  document.getElementById("sign_out").addEventListener("click", sign_out);
+  document.addEventListener('DOMContentLoaded', is_signed_in);
+</script>
+</body>
+</html>

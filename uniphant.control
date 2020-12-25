@@ -1,0 +1,6 @@
+# uniphant extension
+comment = 'uniphant'
+default_version = '1.0'
+requires = 'webauthn'
+superuser = false
+schema = public

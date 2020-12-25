@@ -1,0 +1,55 @@
+BEGIN;
+CREATE EXTENSION uniphant CASCADE;
+NOTICE:  installing required extension "webauthn"
+NOTICE:  installing required extension "pguecc"
+NOTICE:  installing required extension "pgcrypto"
+NOTICE:  installing required extension "cbor"
+SELECT set_config('request.header.origin','http://localhost',FALSE);
+    set_config    
+------------------
+ http://localhost
+(1 row)
+
+SELECT effective_domain();
+ effective_domain 
+------------------
+ localhost
+(1 row)
+
+SELECT set_config('request.header.origin','http://example.com',FALSE);
+     set_config     
+--------------------
+ http://example.com
+(1 row)
+
+SELECT effective_domain();
+ effective_domain 
+------------------
+ example.com
+(1 row)
+
+SELECT set_config('request.header.X-Forwarded-For','127.0.0.1',FALSE);
+ set_config 
+------------
+ 127.0.0.1
+(1 row)
+
+SELECT remote_ip();
+ remote_ip 
+-----------
+ 127.0.0.1
+(1 row)
+
+SELECT set_config('request.header.X-Forwarded-For','192.168.123.123',FALSE);
+   set_config    
+-----------------
+ 192.168.123.123
+(1 row)
+
+SELECT remote_ip();
+    remote_ip    
+-----------------
+ 192.168.123.123
+(1 row)
+
+ROLLBACK;
