@@ -74,10 +74,10 @@ sudo make install
 createuser api -L -s
 createuser web_anon -L
 createuser postgrest -I -l
-psql -c "CREATE EXTENSION uniphant CASCADE"
-psql -c "GRANT USAGE ON SCHEMA api TO web_anon"
-psql -c "GRANT web_anon TO postgrest"
-psql -c "GRANT USAGE ON SCHEMA webauthn TO web_anon"
+psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
+psql -c "GRANT USAGE ON SCHEMA api TO web_anon" uniphant
+psql -c "GRANT web_anon TO postgrest" uniphant
+psql -c "GRANT USAGE ON SCHEMA webauthn TO web_anon" uniphant
 make installcheck
 wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
 tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
