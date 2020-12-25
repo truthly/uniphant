@@ -95,13 +95,6 @@ sudo ln -s $HOME/uniphant/demo /var/www/html/uniphant
 sudo systemctl restart nginx
 ```
 
-Next, you need to forward a port from your local machine to the Linux server.
-Replace **uniphant** with your username and **192.168.1.153** with your Linux server IP.
-
-```sh
-ssh -L 8080:127.0.0.1:80 uniphant@192.168.1.153
-```
-
 Next, you can connect with a browser to `http://localhost:8080` and test sign-up and sign-in.
 
 After sign-in and sign-up, you will see the new user in the `users` table and the generated token in the `tokens` table.
