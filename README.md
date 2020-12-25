@@ -6,7 +6,7 @@
 
 <h2 id="about">1. About</h2>
 
-`uniphant` is
+`uniphant` is a full-stack example project on how to integrate various PostgreSQL-centric components to work nicely together.
 
 <h2 id="dependencies">2. Dependencies</h2>
 
@@ -98,3 +98,36 @@ ssh -L 8080:127.0.0.1:80 uniphant@192.168.1.153
 ```
 
 Next, you can connect with a browser to `http://localhost:8080` and test sign-up and sign-in.
+
+After sign-in and sign-up, you will see the new user in the `users` table and the generated token in the `tokens` table.
+
+```sh
+uniphant@uniphant:~/uniphant$ psql
+psql (13.1 (Ubuntu 13.1-1.pgdg20.04+1))
+Type "help" for help.
+
+uniphant=# \x
+Expanded display is on.
+```
+
+```sql
+SELECT * FROM users;
+
+-[ RECORD 1 ]------+-----------------------------------------------------------------------------------------------------------------------------------
+user_id            | 1
+user_random_id     | \x1a31c094bc47e3d18f04bb9881447da3f0b48a3937139a0980d8b9c2c82a7d3502df96c4718d7e0d69ba22e44a8ddc6fec57875c65ec25a0fcf8a8b39c0dfce8
+username           | alex.p.mueller@example.com
+display_name       | Alex P. Müller
+sign_up_at         | 2020-12-25 19:55:01.411471+00
+sign_up_ip         | 127.0.0.1
+make_credential_at | 2020-12-25 19:55:03.713913+00
+make_credential_ip | 127.0.0.1
+
+SELECT * FROM tokens;
+
+-[ RECORD 1 ]-------------------------------------
+token       | ea487db4-d1c6-460a-8cf6-68da3e69d183
+user_id     | 1
+sign_in_at  | 2020-12-25 19:55:10.28184+00
+sign_out_at |
+```
