@@ -100,7 +100,7 @@ Next, you can connect with a browser to `http://localhost:8080` and test sign-up
 After sign-in and sign-up, you will see the new user in the `users` table and the generated token in the `tokens` table.
 
 ```sh
-uniphant@uniphant:~/uniphant$ psql
+uniphant@uniphant:~/uniphant$ psql uniphant
 psql (13.1 (Ubuntu 13.1-1.pgdg20.04+1))
 Type "help" for help.
 
