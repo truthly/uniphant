@@ -21,7 +21,7 @@
 <h3 id="installation-osx">3.1. Running Ubuntu in VirtualBox</h3>
 
 1. Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
-1. Download [Ubuntu 20.04.1 ISO](https://releases.ubuntu.com/20.04/ubuntu-20.04.1-live-server-amd64.iso)
+1. Download [ubuntu-20.04.1-live-server-amd64.iso](https://releases.ubuntu.com/20.04/ubuntu-20.04.1-live-server-amd64.iso)
 1. Open VirtualBox
 1. Click **New** and follow instructions
 1. Click **Settings** and goto **Network**, change to **Bridged Adapter**
