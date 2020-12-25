@@ -93,7 +93,7 @@ sudo systemctl restart nginx
 ```
 
 Next, you need to forward a port from your local machine to the Linux server.
-Replace **uniphant** with your usernmae and **192.168.1.153** with your Linux server IP.
+Replace **uniphant** with your username and **192.168.1.153** with your Linux server IP.
 
 ```sh
 ssh -L 8080:127.0.0.1:80 uniphant@192.168.1.153
