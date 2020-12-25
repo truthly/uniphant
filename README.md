@@ -6,13 +6,15 @@
 
 <h2 id="about">1. About</h2>
 
-`uniphant` is a full-stack example project on how to integrate various PostgreSQL-centric components to work nicely together.
+`uniphant` is a full-stack demo project on how to integrate various PostgreSQL-centric components to work nicely together.
 
 <h2 id="dependencies">2. Dependencies</h2>
 
-[pg-webauthn](https://github.com/truthly/pg-webauthn) for the WebAuthn Server.
+[🔐🐘webauthn] for the WebAuthn Server.
 
 [PostgREST](https://postgrest.org/en/v7.0.0/) for the API.
+
+[🔐🐘webauthn]: https://github.com/truthly/pg-webauthn
 
 <h2 id="installation">3. Installation</h2>
 
