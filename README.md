@@ -27,7 +27,7 @@
 1. Click **Settings** and goto **Network**, Attached to: **NAT**, Click **Port Forwarding**
 1. Add Host Port **2200** Guest Port **22**, leave Host IP and Guest IP blank
 1. Add Host Port **8080** Guest Port **80**, leave Host IP and Guest IP blank
-1. **OK**, **OK**
+1. Click **OK**, Click **OK**
 1. Click **Start**
 1. Select **ubuntu-20.04.1-live-server-amd64.iso**
 1. Follow instructions
