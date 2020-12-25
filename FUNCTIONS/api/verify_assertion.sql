@@ -25,10 +25,6 @@ new_token AS (
 )
 SELECT token
 FROM new_token
---
--- In production, make sure to add "Secure;":
--- WHERE set_config('response.headers', format('[{"Set-Cookie": "access_token=%s; path=/; Secure; HttpOnly; SameSite=Strict; max-age=86400"}]', token), TRUE) IS NOT NULL
---
 WHERE set_config('response.headers', format(
   '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; max-age=86400"}]',
   token,
