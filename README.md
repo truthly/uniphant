@@ -66,6 +66,9 @@ make
 sudo make install
 make installcheck
 cd ..
+wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
+tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
+sudo cp postgrest /bin/postgrest
 sudo apt -y install nginx-light
 git clone https://github.com/truthly/uniphant.git
 cd uniphant
@@ -79,9 +82,6 @@ psql -c "GRANT USAGE ON SCHEMA api TO web_anon" uniphant
 psql -c "GRANT web_anon TO postgrest" uniphant
 psql -c "GRANT USAGE ON SCHEMA webauthn TO web_anon" uniphant
 make installcheck
-wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
-tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
-sudo cp postgrest /bin/postgrest
 sudo mkdir -p /etc/postgrest
 sudo cp postgrest.conf /etc/postgrest/config
 sudo cp postgrest.service /etc/systemd/system/postgrest.service
