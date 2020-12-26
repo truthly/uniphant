@@ -29,7 +29,7 @@ wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/pos
 tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
 sudo cp postgrest /bin/postgrest
 git clone https://github.com/truthly/uniphant.git
-cd uniphant || exit
+cd uniphant || exit
 make
 sudo make install
 createuser api -L -s
