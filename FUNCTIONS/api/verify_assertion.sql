@@ -18,17 +18,20 @@ verify AS (
 ),
 new_token AS (
   INSERT INTO tokens (user_id, expire_at)
-  SELECT users.user_id, now()+'2592000 seconds'::interval /* 1 month */
+  SELECT users.user_id, now() + settings.verify_assertion_access_token_cookie_max_age
   FROM verify
+  CROSS JOIN settings
   JOIN users ON users.user_random_id = verify.user_id
-  RETURNING tokens.token
+  RETURNING tokens.token, tokens.expire_at
 )
-SELECT token
+SELECT new_token.token
 FROM new_token
+CROSS JOIN settings
 WHERE set_config('response.headers', format(
-  '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; max-age=2592000"}]',
-  token,
-  CASE WHEN effective_domain() = 'localhost' THEN 'HttpOnly' ELSE 'HttpOnly; Secure' END
+  '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; Expires=%s"}]',
+  new_token.token,
+  CASE WHEN effective_domain() = 'localhost' THEN 'HttpOnly' ELSE 'HttpOnly; Secure' END,
+  to_char(new_token.expire_at AT TIME ZONE 'GMT','Dy, DD Mon YYYY HH:MI:SS GMT')
 ), TRUE) IS NOT NULL
 $$;
 

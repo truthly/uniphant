@@ -13,6 +13,7 @@ SQL_SRC = \
   complain_header.sql \
   FUNCTIONS/effective_domain.sql \
   FUNCTIONS/remote_ip.sql \
+  TABLES/settings.sql \
   TABLES/users.sql \
 	TABLES/tokens.sql \
   FUNCTIONS/api/init_credential.sql \
