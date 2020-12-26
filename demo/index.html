@@ -29,7 +29,6 @@
 <button id="sign-in">Sign in</button>
 <button id="sign-out">Sign out</button>
 <div class="pre" id="log"></div>
-<script type="text/javascript" src="base64.js"></script>
 <script>
 
   // Most code in this file is based on: https://webauthn.io/dist/js/webauthn.js
@@ -42,11 +41,18 @@
   }
 
   // Encode an ArrayBuffer into a base64url string.
-  function buffer_encode(value) {
-      return base64js.fromByteArray(value)
-          .replace(/\+/g, "-")
-          .replace(/\//g, "_")
-          .replace(/=/g, "");
+  // Taken from: https://gist.github.com/Deliaz/e89e9a014fea1ec47657d1aac3baa83c
+  function buffer_encode(buffer) {
+    let binary = '';
+    let bytes = new Uint8Array(buffer);
+    let len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
   }
 
   function status(response) {
@@ -189,6 +195,7 @@
         "user_handle" : buffer_encode(user_handle)
       })
     }).then(status).then(json).then(function(token) {
+      console.log(token);
       document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion ok\n";
       if (token === null) {
         document.getElementById("log").innerHTML += "❌ sign in failed\n";
