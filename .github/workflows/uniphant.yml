@@ -11,9 +11,10 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install
+        id: install
         run: ./install.sh
         shell: bash
       
       - name: Check on failures
-        if: $(psql -A -t -c "SELECT COUNT(*) FROM webauthn.credential_challenges" uniphant) != 1
+        if: steps.install.outputs.count_credential_challenges != 1
         run: exit 1
