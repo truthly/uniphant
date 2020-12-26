@@ -57,7 +57,7 @@ createdb uniphant
 git clone https://github.com/truthly/pg-cbor.git
 (cd pg-cbor && make && sudo make install && make installcheck)
 git clone https://github.com/ameensol/pg-ecdsa.git
-(cd pg-ecdsa && PG_CFLAGS=-Wno-vla make && sudo make install && make installcheck)
+(cd pg-ecdsa && PG_CFLAGS="-Wno-vla -Wno-declaration-after-statement -Wno-missing-prototypes" make && sudo make install && make installcheck)
 git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
