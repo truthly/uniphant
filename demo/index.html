@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
+<title>🦄🐘uniphant playground</title>
 <style>
 .error {
   background-color: #ffaaaa;
@@ -12,7 +13,7 @@
     display: block;
     unicode-bidi: embed
 }
-#signedInDiv {
+#signed-in-div {
   float:right;
   margin-right:10px;
   clear:both;
@@ -20,13 +21,13 @@
 </style>
 </head>
 <body>
-<div id="signedInDiv"></div>
+<div id="signed-in-div"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
 <input placeholder="username" type="text" id="username" autofocus required />
-<input placeholder="display_name" type="text" id="display_name" required />
-<button id="sign_up">Sign up</button>
-<button id="sign_in">Sign in</button>
-<button id="sign_out">Sign out</button>
+<input placeholder="display-name" type="text" id="display-name" required />
+<button id="sign-up">Sign up</button>
+<button id="sign-in">Sign in</button>
+<button id="sign-out">Sign out</button>
 <div class="pre" id="log"></div>
 </head>
 <body>
@@ -68,9 +69,9 @@
       document.getElementById("username").focus();
       return;
     }
-    if (document.getElementById("display_name").value === "") {
+    if (document.getElementById("display-name").value === "") {
       document.getElementById("log").innerHTML += "please enter a display_name\n";
-      document.getElementById("display_name").focus();
+      document.getElementById("display-name").focus();
       return;
     }
     document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
@@ -81,7 +82,7 @@
       },
       body: JSON.stringify({
           "username" : document.getElementById("username").value,
-          "display_name" : document.getElementById("display_name").value
+          "display_name" : document.getElementById("display-name").value
       })
     }).then(status).then(json).then(function(make_credential_options) {
       console.log(make_credential_options);
@@ -126,9 +127,9 @@
       if (status) {
         document.getElementById("log").innerHTML += "POST /api/rpc/make_credential ok\n";
         document.getElementById("username").value = "";
-        document.getElementById("display_name").value = "";
+        document.getElementById("display-name").value = "";
         document.getElementById("log").innerHTML += "✅ please go ahead and try your first username-less login\n";
-        document.getElementById("sign_in").focus();
+        document.getElementById("sign-in").focus();
       } else {
         document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
       }
@@ -211,9 +212,9 @@
       body: JSON.stringify({})
     }).then(status).then(json).then(function(username) {
       if (username === null) {
-        document.getElementById("signedInDiv").innerHTML = "";
+        document.getElementById("signed-in-div").innerHTML = "";
       } else {
-        document.getElementById("signedInDiv").innerHTML = `✅ signed in as ${username}`;
+        document.getElementById("signed-in-div").innerHTML = `✅ signed in as ${username}`;
       }
     }).catch(function(error) {
       document.getElementById("log").innerHTML += `POST /api/rpc/is_signed_in error: ${error}\n`;
@@ -238,9 +239,9 @@
   }
 
 
-  document.getElementById("sign_up").addEventListener("click", sign_up);
-  document.getElementById("sign_in").addEventListener("click", sign_in);
-  document.getElementById("sign_out").addEventListener("click", sign_out);
+  document.getElementById("sign-up").addEventListener("click", sign_up);
+  document.getElementById("sign-in").addEventListener("click", sign_in);
+  document.getElementById("sign-out").addEventListener("click", sign_out);
   document.addEventListener('DOMContentLoaded', is_signed_in);
 </script>
 </body>
