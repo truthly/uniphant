@@ -80,18 +80,62 @@ sudo cp nginx.conf /etc/nginx/sites-available/uniphant
 sudo ln -s /etc/nginx/sites-available/uniphant /etc/nginx/sites-enabled/uniphant
 sudo ln -s "$HOME/uniphant/demo" /var/www/html/uniphant
 sudo systemctl restart nginx
-curl 'http://localhost/api/rpc/init_credential' \
-  -H 'Content-Type: application/json;charset=utf-8' -w "\n" \
-  --data '{"username":"test","display_name":"Test User"}'
 ```
 
-Example on what the output from the final `curl` command looks like:
+Installation complete.
+
+You can now try to initiate a sign-up using `curl` from the command line:
+
+```sh
+curl 'http://localhost/api/rpc/init_credential' \
+  -H 'Content-Type: application/json;charset=utf-8' \
+  --data '{"username":"test","display_name":"Test User"}' \
+  -w "\n"
+```
+
+If everything is OK, you should see output that looks like this:
 
 ```json
 {"publicKey": {"rp": {"name": "ACME Corporation"}, "user": {"id": "mxgsmiTKowofNg71mxPYxq4QX_YmzfQpX6bvrMnfC91AlzIh6L663p9rBqGKK5fOWjHrcriupYlMg2F4pWjujg", "name": "test", "displayName": "Test User"}, "timeout": 300000, "challenge": "Y3SLvrDyb42jNV6JRwr_XGsqN35gk-WEXdzWAKKZCOQ", "attestation": "none", "pubKeyCredParams": [{"alg": -7, "type": "public-key"}], "authenticatorSelection": {"userVerification": "discouraged", "requireResidentKey": true}}}
 ```
 
-Next, you can connect with a browser to `http://localhost:8080` and test sign-up and sign-in.
+Use `psql` to check the content of the `webauthn.credential_challenges` table which should now contain one row:
+
+```sh
+uniphant@uniphant:~/uniphant$ psql uniphant
+psql (13.1 (Ubuntu 13.1-1.pgdg20.04+1))
+Type "help" for help.
+
+uniphant=# \x
+Expanded display is on.
+```
+
+```sql
+SELECT * FROM webauthn.credential_challenges
+
+-[ RECORD 1 ]------+-----------------------------------------------------------------------------------------------------------------------------------
+challenge          | \x63748bbeb0f26f8da3355e89470aff5c6b2a377e6093e5845ddcd600a29908e4
+user_name          | test
+user_id            | \x9b182c9a24caa30a1f360ef59b13d8c6ae105ff626cdf4295fa6efacc9df0bdd40973221e8bebade9f6b06a18a2b97ce5a31eb72b8aea5894c836178a568ee8e
+user_display_name  | Test User
+relying_party_name | ACME Corporation
+relying_party_id   |
+user_verification  | discouraged
+attestation        | none
+timeout            | 00:05:00
+challenge_at       | 2020-12-26 12:23:57.560249+01
+```
+
+This is how far we get testing in the command line.
+
+To complete a real sign-up and sign-in, we need to use a real browser,
+since the private/public key pairs can't be easily generated from the command line,
+since they depend on an *Authenticator device*, either built-in TouchID/FaceID,
+or an external device like a Yubikey.
+
+To do so, browse to `http://localhost:8080` to test a real sign-up and sign-in.
+
+**Note:** Only works with Chrome and Safari. **Firefox** is currently **not supported** due to a [bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1530370).
 
 After sign-in and sign-up, you will see the new user in the `users` table and the generated token in the `tokens` table.
 
