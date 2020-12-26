@@ -41,11 +41,11 @@
 The following exact step-by-step instructions assume a clean installation of Ubuntu.
 
 ```sh
-sudo apt -y dist-upgrade
+sudo apt-get -y dist-upgrade
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-sudo apt update
-sudo apt -y install postgresql postgresql-server-dev-13 build-essential
+sudo apt-get update
+sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential nginx-light
 sudo -u postgres createuser -s $USER
 createdb uniphant
 git clone https://github.com/truthly/pg-cbor.git
@@ -69,7 +69,6 @@ cd ..
 wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
 tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
 sudo cp postgrest /bin/postgrest
-sudo apt -y install nginx-light
 git clone https://github.com/truthly/uniphant.git
 cd uniphant
 make
