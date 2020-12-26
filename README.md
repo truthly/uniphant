@@ -36,10 +36,10 @@
 1. Click **Start**
 1. Select **ubuntu-20.04.1-live-server-amd64.iso**
 1. Follow instructions
-1. To simplify logging in to the machine, you can enter your Github username to install its SSH key.
-1. Install OpenSSH server: **YES**
-1. Import SSH identity: **from GitHub**
-1. Github username: *enter your Github-username*
+1. To simplify logging in to the machine via SSH, you can enter your GitHub username to install its SSH key. (optional)
+    1. Install OpenSSH server: **YES**
+    1. Import SSH identity: **from GitHub**
+    1. GitHub username: **[Enter your GitHub username]**
 
 <h3 id="installation-osx">3.2. Ubuntu 20.04.1</h3>
 
