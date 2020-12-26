@@ -1,5 +1,10 @@
 <h1 id="top">🦄🐘<code>uniphant</code></h1>
 
+<p align="left">
+  <a href="https://github.com/truthly/uniphant/actions"><img alt="build-test status" src="https://github.com/truthly/uniphant/workflows/build-test/badge.svg"></a>
+  <a href="https://github.com/truthly/uniphant/actions"><img alt="super-linter status" src="https://github.com/truthly/uniphant/workflows/super-linter/badge.svg"></a>  
+</p>
+
 1. [About](#about)
 2. [Dependencies](#dependencies)
 3. [Installation](#installation)

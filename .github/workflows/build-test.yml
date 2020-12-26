@@ -1,13 +1,13 @@
-name: uniphant
+name: build-test
 
 on: push
 
 jobs:
-  uniphant:
-    name: uniphant
+  install:
+    name: Run
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v2
 
       - name: Install
@@ -15,6 +15,6 @@ jobs:
         run: ./install.sh
         shell: bash
       
-      - name: Check on failures
+      - name: Check
         if: steps.install.outputs.count_credential_challenges != 1
         run: exit 1
