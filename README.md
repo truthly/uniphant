@@ -78,9 +78,6 @@ createuser api -L -s
 createuser web_anon -L
 createuser postgrest -I -l
 psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
-psql -c "GRANT USAGE ON SCHEMA api TO web_anon" uniphant
-psql -c "GRANT web_anon TO postgrest" uniphant
-psql -c "GRANT USAGE ON SCHEMA webauthn TO web_anon" uniphant
 make installcheck
 sudo mkdir -p /etc/postgrest
 sudo cp postgrest.conf /etc/postgrest/config
