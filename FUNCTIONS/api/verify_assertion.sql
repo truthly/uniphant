@@ -17,8 +17,8 @@ verify AS (
   )
 ),
 new_token AS (
-  INSERT INTO tokens (user_id)
-  SELECT users.user_id
+  INSERT INTO tokens (user_id, expire_at)
+  SELECT users.user_id, now()+'2592000 seconds'::interval /* 1 month */
   FROM verify
   JOIN users ON users.user_random_id = verify.user_id
   RETURNING tokens.token
@@ -26,7 +26,7 @@ new_token AS (
 SELECT token
 FROM new_token
 WHERE set_config('response.headers', format(
-  '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; max-age=86400"}]',
+  '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; max-age=2592000"}]',
   token,
   CASE WHEN effective_domain() = 'localhost' THEN 'HttpOnly' ELSE 'HttpOnly; Secure' END
 ), TRUE) IS NOT NULL

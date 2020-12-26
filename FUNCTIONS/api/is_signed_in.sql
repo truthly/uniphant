@@ -7,7 +7,8 @@ AS $$
 SELECT format('%s (%s)', username, display_name)
 FROM tokens
 JOIN users ON users.user_id = tokens.user_id
-WHERE tokens.token = NULLIF(current_setting('request.cookie.access_token', TRUE),'')::uuid;
+WHERE tokens.token = NULLIF(current_setting('request.cookie.access_token', TRUE),'')::uuid
+AND tokens.expire_at > now();
 $$;
 
 ALTER FUNCTION api.is_signed_in() OWNER TO api;
