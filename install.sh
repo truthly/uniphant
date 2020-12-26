@@ -51,5 +51,3 @@ sudo systemctl restart nginx
 curl 'http://localhost/api/rpc/init_credential' \
   -H 'Content-Type: application/json;charset=utf-8' \
   --data '{"username":"test","display_name":"Test User"}'
-psql -c "SELECT COUNT(*) FROM webauthn.credential_challenges"
-if [[ $(psql -A -t -c "SELECT COUNT(*) FROM webauthn.credential_challenges") == 1 ]]; then echo ::set-output name=status::success; fi

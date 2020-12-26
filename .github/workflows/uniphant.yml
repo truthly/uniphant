@@ -15,5 +15,5 @@ jobs:
         shell: bash
       
       - name: Check on failures
-        if: steps.install.outputs.status != 'success'
+        if: $(psql -A -t -c "SELECT COUNT(*) FROM webauthn.credential_challenges" uniphant) != 1
         run: exit 1
