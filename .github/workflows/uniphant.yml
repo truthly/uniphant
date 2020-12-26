@@ -10,6 +10,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: install
+      - name: Install
         run: ./install.sh
         shell: bash
+      
+      - name: Check on failures
+        if: steps.install.outputs.status != 'success'
+        run: exit 1
