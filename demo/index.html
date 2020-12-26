@@ -29,7 +29,6 @@
 <button id="sign-in">Sign in</button>
 <button id="sign-out">Sign out</button>
 <div class="pre" id="log"></div>
-</head>
 <body>
 <script type="text/javascript" src="base64.js"></script>
 <script>
@@ -91,7 +90,7 @@
       make_credential_options.publicKey.challenge = buffer_decode(make_credential_options.publicKey.challenge);
       make_credential_options.publicKey.user.id = buffer_decode(make_credential_options.publicKey.user.id);
       if (make_credential_options.publicKey.excludeCredentials) {
-        for (var i = 0; i < make_credential_options.publicKey.excludeCredentials.length; i++) {
+        for (let i = 0; i < make_credential_options.publicKey.excludeCredentials.length; i++) {
           make_credential_options.publicKey.excludeCredentials[i].id = buffer_decode(make_credential_options.publicKey.excludeCredentials[i].id);
         }
       }
