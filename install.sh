@@ -34,8 +34,7 @@ sudo ln -s /etc/nginx/sites-available/uniphant /etc/nginx/sites-enabled/uniphant
 sudo ln -s "$HOME/uniphant/demo" /var/www/html/uniphant
 sudo systemctl restart nginx
 curl 'http://localhost/api/rpc/init_credential' \
-  -H 'Content-Type: application/json;charset=utf-8' \
+  -H 'Content-Type: application/json;charset=utf-8' -w "\n" \
   --data '{"username":"test","display_name":"Test User"}'
-echo
 COUNT_CREDENTIAL_CHALLENGES=$(psql -A -t -c "SELECT COUNT(*) FROM webauthn.credential_challenges" uniphant)
 echo "::set-output name=count_credential_challenges::$COUNT_CREDENTIAL_CHALLENGES"

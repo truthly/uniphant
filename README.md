@@ -81,8 +81,14 @@ sudo ln -s /etc/nginx/sites-available/uniphant /etc/nginx/sites-enabled/uniphant
 sudo ln -s "$HOME/uniphant/demo" /var/www/html/uniphant
 sudo systemctl restart nginx
 curl 'http://localhost/api/rpc/init_credential' \
-  -H 'Content-Type: application/json;charset=utf-8' \
+  -H 'Content-Type: application/json;charset=utf-8' -w "\n" \
   --data '{"username":"test","display_name":"Test User"}'
+```
+
+Example on what the output from the final `curl` command looks like:
+
+```json
+{"publicKey": {"rp": {"name": "ACME Corporation"}, "user": {"id": "mxgsmiTKowofNg71mxPYxq4QX_YmzfQpX6bvrMnfC91AlzIh6L663p9rBqGKK5fOWjHrcriupYlMg2F4pWjujg", "name": "test", "displayName": "Test User"}, "timeout": 300000, "challenge": "Y3SLvrDyb42jNV6JRwr_XGsqN35gk-WEXdzWAKKZCOQ", "attestation": "none", "pubKeyCredParams": [{"alg": -7, "type": "public-key"}], "authenticatorSelection": {"userVerification": "discouraged", "requireResidentKey": true}}}
 ```
 
 Next, you can connect with a browser to `http://localhost:8080` and test sign-up and sign-in.
