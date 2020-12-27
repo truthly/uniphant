@@ -1,7 +1,7 @@
 CREATE TABLE tokens (
 token uuid NOT NULL DEFAULT gen_random_uuid(),
 user_id bigint NOT NULL REFERENCES users,
-expire_at timestamptz NOT NULL,
+expire_at timestamptz,
 PRIMARY KEY (token)
 );
 

@@ -28,10 +28,10 @@ SELECT new_token.token
 FROM new_token
 CROSS JOIN settings
 WHERE set_config('response.headers', format(
-  '[{"Set-Cookie": "access_token=%s; path=/; %s; SameSite=Strict; Expires=%s"}]',
+  '[{"Set-Cookie": "access_token=%s; path=/; HttpOnly; SameSite=Strict%s%s"}]',
   new_token.token,
-  CASE WHEN effective_domain() = 'localhost' THEN 'HttpOnly' ELSE 'HttpOnly; Secure' END,
-  to_char(new_token.expire_at AT TIME ZONE 'GMT','Dy, DD Mon YYYY HH:MI:SS GMT')
+  CASE WHEN effective_domain() = 'localhost' THEN '' ELSE '; Secure' END,
+  '; Expires=' || to_char(new_token.expire_at AT TIME ZONE 'GMT','Dy, DD Mon YYYY HH:MI:SS GMT')
 ), TRUE) IS NOT NULL
 $$;
 
