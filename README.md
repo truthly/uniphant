@@ -46,7 +46,7 @@
 Connect to your VirtualBox machine, assuming the forwarded Host Port is **2200** and the username is **uniphant**:
 
 ```sh
-ssh -p 2200 uniphant@127.0.0.1
+ssh -p 2200 uniphant@localhost
 ```
 
 The following exact step-by-step instructions assume a clean installation of Ubuntu.
