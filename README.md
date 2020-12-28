@@ -43,7 +43,14 @@
 
 <h3 id="installation-osx">3.2. Ubuntu 20.04.1</h3>
 
+Connect to your VirtualBox machine, assuming the forwarded Host Port is **2200** and the username is **uniphant**:
+
+```sh
+ssh -p 2200 uniphant@127.0.0.1
+```
+
 The following exact step-by-step instructions assume a clean installation of Ubuntu.
+
 
 ```sh
 # postgresql:
