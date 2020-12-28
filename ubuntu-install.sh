@@ -22,7 +22,7 @@ git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 # uniphant:
 git clone https://github.com/truthly/uniphant.git
-cd uniphant || exit
+cd uniphant || exit
 (make && sudo make install && make installcheck)
 psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
 # postgrest:
