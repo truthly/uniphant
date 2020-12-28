@@ -22,10 +22,8 @@ git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 # uniphant:
 git clone https://github.com/truthly/uniphant.git
-cd uniphant
-make
-sudo make install
-make installcheck
+cd uniphant || exit
+(make && sudo make install && make installcheck)
 psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
 # postgrest:
 wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
