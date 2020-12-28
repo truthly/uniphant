@@ -7,7 +7,7 @@ init_credential_attestation webauthn.attestation_conveyance_preference NOT NULL 
 init_credential_timeout interval NOT NULL DEFAULT '5 minutes'::interval,
 get_credentials_user_verification webauthn.user_verification_requirement NOT NULL DEFAULT 'discouraged',
 get_credentials_timeout interval NOT NULL DEFAULT '5 minutes'::interval,
-verify_assertion_access_token_cookie_max_age interval DEFAULT '1 month'::interval,
+verify_assertion_access_token_cookie_max_age interval DEFAULT NULL::interval, -- NULL=session cookie (default)
 PRIMARY KEY (setting_id),
 CHECK (setting_id = 1)
 );
