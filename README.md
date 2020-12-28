@@ -54,6 +54,10 @@ sudo apt-get update
 sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
+createdb uniphant
+createuser api -L -s
+createuser web_anon -L
+createuser postgrest -I
 # pg-cbor:
 git clone https://github.com/truthly/pg-cbor.git
 (cd pg-cbor && make && sudo make install && make installcheck)
@@ -64,10 +68,8 @@ git clone https://github.com/ameensol/pg-ecdsa.git
 git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 # uniphant:
-createdb uniphant
-createuser api -L -s
-createuser web_anon -L
-createuser postgrest -I
+git clone https://github.com/truthly/uniphant.git
+cd uniphant
 make
 sudo make install
 make installcheck
