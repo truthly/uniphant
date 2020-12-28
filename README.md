@@ -51,7 +51,6 @@ ssh -p 2200 uniphant@127.0.0.1
 
 The following exact step-by-step instructions assume a clean installation of Ubuntu.
 
-
 ```sh
 # postgresql:
 sudo apt-get -y dist-upgrade
@@ -76,7 +75,7 @@ git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 # uniphant:
 git clone https://github.com/truthly/uniphant.git
-cd uniphant
+cd uniphant || exit
 make
 sudo make install
 make installcheck
