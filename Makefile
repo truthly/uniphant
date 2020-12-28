@@ -1,17 +1,14 @@
 EXTENSION = uniphant
-DATA = uniphant--1.1.sql \
-	uniphant--1.0--1.1.sql
+DATA = uniphant--1.2.sql uniphant--1.1--1.2.sql
 
 REGRESS = test
-EXTRA_CLEAN = uniphant--1.1.sql \
-	uniphant--1.0--1.1.sql
+EXTRA_CLEAN = uniphant--1.2.sql uniphant--1.1--1.2.sql
 
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
-all: uniphant--1.1.sql \
-	uniphant--1.0--1.1.sql
+all: uniphant--1.2.sql uniphant--1.1--1.2.sql
 
 SQL_SRC = \
   complain_header.sql \
@@ -31,19 +28,12 @@ SQL_SRC = \
 	FUNCTIONS/api/sign_out.sql \
 	FUNCTIONS/api/sign_up.sql
 
-uniphant--1.1.sql: $(SQL_SRC)
+uniphant--1.2.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
   complain_header.sql \
-  1.0--1.1.sql \
-	FUNCTIONS/issue_access_token.sql \
-  FUNCTIONS/api/init_credential.sql \
-  FUNCTIONS/api/verify_assertion.sql \
-	FUNCTIONS/api/is_signed_in.sql \
-	FUNCTIONS/api/sign_out.sql \
-	FUNCTIONS/api/sign_up.sql \
-	FUNCTIONS/user_id.sql
+  1.1--1.2.sql
 
-uniphant--1.0--1.1.sql: $(SQL_SRC)
+uniphant--1.1--1.2.sql: $(SQL_SRC)
 	cat $^ > $@
