@@ -1,27 +1,49 @@
 EXTENSION = uniphant
-DATA = uniphant--1.0.sql
+DATA = uniphant--1.1.sql \
+	uniphant--1.0--1.1.sql
+
 REGRESS = test
-EXTRA_CLEAN = uniphant--1.0.sql
+EXTRA_CLEAN = uniphant--1.1.sql \
+	uniphant--1.0--1.1.sql
 
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
-all: uniphant--1.0.sql
+all: uniphant--1.1.sql \
+	uniphant--1.0--1.1.sql
 
 SQL_SRC = \
   complain_header.sql \
+  create_schema_grant.sql \
   FUNCTIONS/effective_domain.sql \
   FUNCTIONS/remote_ip.sql \
   TABLES/settings.sql \
   TABLES/users.sql \
-	TABLES/tokens.sql \
-  FUNCTIONS/api/init_credential.sql \
+	TABLES/access_tokens.sql \
+	FUNCTIONS/issue_access_token.sql \
+	FUNCTIONS/user_id.sql \
+	FUNCTIONS/api/init_credential.sql \
   FUNCTIONS/api/make_credential.sql \
   FUNCTIONS/api/get_credentials.sql \
   FUNCTIONS/api/verify_assertion.sql \
 	FUNCTIONS/api/is_signed_in.sql \
-	FUNCTIONS/api/sign_out.sql
+	FUNCTIONS/api/sign_out.sql \
+	FUNCTIONS/api/sign_up.sql
 
-uniphant--1.0.sql: $(SQL_SRC)
+uniphant--1.1.sql: $(SQL_SRC)
+	cat $^ > $@
+
+SQL_SRC = \
+  complain_header.sql \
+  1.0--1.1.sql \
+	FUNCTIONS/issue_access_token.sql \
+  FUNCTIONS/api/init_credential.sql \
+  FUNCTIONS/api/verify_assertion.sql \
+	FUNCTIONS/api/is_signed_in.sql \
+	FUNCTIONS/api/sign_out.sql \
+	FUNCTIONS/api/sign_up.sql \
+	FUNCTIONS/user_id.sql
+
+uniphant--1.0--1.1.sql: $(SQL_SRC)
 	cat $^ > $@

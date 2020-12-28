@@ -1,4 +1,11 @@
 BEGIN;
+--
+-- This only tests the extension can be installed
+-- and calls a few functions that can easily be tested.
+--
+-- For a more complete integration test,
+-- see .github/workflows/build-test.yml
+--
 CREATE EXTENSION uniphant CASCADE;
 NOTICE:  installing required extension "webauthn"
 NOTICE:  installing required extension "pguecc"
@@ -50,6 +57,30 @@ SELECT remote_ip();
     remote_ip    
 -----------------
  192.168.123.123
+(1 row)
+
+SELECT api.sign_up(username := 'test');
+ sign_up 
+---------
+ t
+(1 row)
+
+SELECT user_id, username FROM users;
+ user_id | username 
+---------+----------
+       1 | test
+(1 row)
+
+SELECT user_id FROM access_tokens;
+ user_id 
+---------
+       1
+(1 row)
+
+SELECT api.sign_out();
+ sign_out 
+----------
+ t
 (1 row)
 
 ROLLBACK;

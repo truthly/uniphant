@@ -24,10 +24,11 @@
 <div id="signed-in-div" class="pre"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
 <input placeholder="username" type="text" id="username" autofocus required />
-<input placeholder="display-name" type="text" id="display-name" required />
-<button id="sign-up">Sign up</button>
-<button id="sign-in">Sign in</button>
-<button id="sign-out">Sign out</button>
+<input placeholder="device-name" type="text" id="device-name" required />
+<button id="sign-up" disabled>Sign up</button>
+<button id="sign-in" disabled>Sign in</button>
+<button id="sign-out" disabled>Sign out</button>
+<button id="add-a-new-key" disabled>Add a new key</button>
 <div class="pre" id="log"></div>
 <script>
 
@@ -73,9 +74,38 @@
       document.getElementById("username").focus();
       return;
     }
-    if (document.getElementById("display-name").value === "") {
-      document.getElementById("log").innerHTML += "please enter a display_name\n";
-      document.getElementById("display-name").focus();
+    if (document.getElementById("device-name").value === "") {
+      document.getElementById("log").innerHTML += "please enter a device_name\n";
+      document.getElementById("device-name").focus();
+      return;
+    }
+    document.getElementById("log").innerHTML += "POST /api/rpc/sign_up\n";
+    fetch("/api/rpc/sign_up", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+        "username" : document.getElementById("username").value
+      })
+    }).then(status).then(json).then(function(ret) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/sign_up ok\n";
+      if (ret === true) {
+        document.getElementById("log").innerHTML += `✅ signed up\n`;
+      } else {
+        document.getElementById("log").innerHTML += "❌ sign up failed\n";
+      }
+      is_signed_in();
+      init_credential();
+    }).catch(function(error) {
+      document.getElementById("log").innerHTML += `POST /api/rpc/sign_up error: ${error}\n`;
+    });
+  }
+
+  function init_credential() {
+    if (document.getElementById("device-name").value === "") {
+      document.getElementById("log").innerHTML += "please enter a device_name\n";
+      document.getElementById("device-name").focus();
       return;
     }
     document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
@@ -85,8 +115,7 @@
         "Content-Type": "application/json;charset=utf-8"
       },
       body: JSON.stringify({
-          "username" : document.getElementById("username").value,
-          "display_name" : document.getElementById("display-name").value
+        "device_name" : document.getElementById("device-name").value
       })
     }).then(status).then(json).then(function(make_credential_options) {
       console.log(make_credential_options);
@@ -122,18 +151,17 @@
         "Content-Type": "application/json;charset=utf-8"
       },
       body: JSON.stringify({
-          "credential_id" : buffer_encode(raw_id),
-          "credential_type" : new_credential.type,
-          "attestation_object" : buffer_encode(attestation_object),
-          "client_data_json" : buffer_encode(client_data_json)
+        "credential_id" : buffer_encode(raw_id),
+        "credential_type" : new_credential.type,
+        "attestation_object" : buffer_encode(attestation_object),
+        "client_data_json" : buffer_encode(client_data_json)
       })
     }).then(status).then(json).then(function(status) {
       if (status) {
         document.getElementById("log").innerHTML += "POST /api/rpc/make_credential ok\n";
         document.getElementById("username").value = "";
-        document.getElementById("display-name").value = "";
-        document.getElementById("log").innerHTML += "✅ please go ahead and try your first username-less login\n";
-        document.getElementById("sign-in").focus();
+        document.getElementById("device-name").value = "";
+        document.getElementById("log").innerHTML += "✅ credential created successfully\n";
       } else {
         document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
       }
@@ -194,13 +222,12 @@
         "signature" : buffer_encode(signature),
         "user_handle" : buffer_encode(user_handle)
       })
-    }).then(status).then(json).then(function(token) {
-      console.log(token);
+    }).then(status).then(json).then(function(ret) {
       document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion ok\n";
-      if (token === null) {
-        document.getElementById("log").innerHTML += "❌ sign in failed\n";
+      if (ret === true) {
+        document.getElementById("log").innerHTML += `✅ signed in\n`;
       } else {
-        document.getElementById("log").innerHTML += `✅ signed in, got access token: ${token}\n`;
+        document.getElementById("log").innerHTML += "❌ sign in failed\n";
       }
       is_signed_in();
     }).catch(function (err) {
@@ -209,6 +236,7 @@
   }
 
   function is_signed_in() {
+    document.getElementById("log").innerHTML += "POST /api/rpc/is_signed_in\n";
     fetch("/api/rpc/is_signed_in", {
       method: "POST",
       headers: {
@@ -216,10 +244,19 @@
       },
       body: JSON.stringify({})
     }).then(status).then(json).then(function(username) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/is_signed_in ok\n";
       if (username === null) {
         document.getElementById("signed-in-div").innerHTML = "";
+        document.getElementById("sign-up").disabled = false;
+        document.getElementById("sign-in").disabled = false;
+        document.getElementById("sign-out").disabled = true;
+        document.getElementById("add-a-new-key").disabled = true;
       } else {
         document.getElementById("signed-in-div").innerHTML = `✅ signed in as ${username}`;
+        document.getElementById("sign-up").disabled = true;
+        document.getElementById("sign-in").disabled = true;
+        document.getElementById("sign-out").disabled = false;
+        document.getElementById("add-a-new-key").disabled = false;
       }
     }).catch(function(error) {
       document.getElementById("log").innerHTML += `POST /api/rpc/is_signed_in error: ${error}\n`;
@@ -247,6 +284,7 @@
   document.getElementById("sign-up").addEventListener("click", sign_up);
   document.getElementById("sign-in").addEventListener("click", sign_in);
   document.getElementById("sign-out").addEventListener("click", sign_out);
+  document.getElementById("add-a-new-key").addEventListener("click", init_credential);
   document.addEventListener('DOMContentLoaded', is_signed_in);
 </script>
 </body>

@@ -12,7 +12,7 @@ jobs:
 
       - name: Install
         id: install
-        run: ./install.sh
+        run: ./ubuntu-install-test.sh
         shell: bash
       
       - name: Check

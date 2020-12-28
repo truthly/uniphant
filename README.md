@@ -46,35 +46,44 @@
 The following exact step-by-step instructions assume a clean installation of Ubuntu.
 
 ```sh
+# postgresql:
 sudo apt-get -y dist-upgrade
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo apt-get update
-sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential nginx-light
+sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
-createdb uniphant
+# pg-cbor:
 git clone https://github.com/truthly/pg-cbor.git
 (cd pg-cbor && make && sudo make install && make installcheck)
+# pg-ecdsa:
 git clone https://github.com/ameensol/pg-ecdsa.git
 (cd pg-ecdsa && PG_CFLAGS="-Wno-vla -Wno-declaration-after-statement -Wno-missing-prototypes" make && sudo make install && make installcheck)
+# pg-webauthn:
 git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
+# uniphant:
+createdb uniphant
+createuser api -L -s
+createuser web_anon -L
+createuser postgrest -I
+make
+sudo make install
+make installcheck
+psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
+# postgrest:
 wget --quiet https://github.com/PostgREST/postgrest/releases/download/v7.0.1/postgrest-v7.0.1-linux-x64-static.tar.xz
 tar xvf postgrest-v7.0.1-linux-x64-static.tar.xz
 sudo cp postgrest /bin/postgrest
-createuser api -L -s
-createuser web_anon -L
-createuser postgrest -I -l
-git clone https://github.com/truthly/uniphant.git
-(cd uniphant && make && sudo make install && make installcheck)
-psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
 sudo mkdir -p /etc/postgrest
 sudo cp postgrest.conf /etc/postgrest/config
 sudo cp postgrest.service /etc/systemd/system/postgrest.service
 sudo adduser --system --no-create-home postgrest
 sudo systemctl enable postgrest
 sudo systemctl start postgrest
+# nginx:
+sudo apt-get -y install nginx-light
 sudo rm /etc/nginx/sites-enabled/default
 sudo cp nginx.conf /etc/nginx/sites-available/uniphant
 sudo ln -s /etc/nginx/sites-available/uniphant /etc/nginx/sites-enabled/uniphant
@@ -84,60 +93,16 @@ sudo systemctl restart nginx
 
 Installation complete.
 
-You can now try to initiate a sign-up using `curl` from the command line:
+You can now try a sign-up using `curl` from the command line:
 
 ```sh
-curl 'http://localhost/api/rpc/init_credential' \
+curl 'http://localhost/api/rpc/sign_up' \
   -H 'Content-Type: application/json;charset=utf-8' \
-  --data '{"username":"test","display_name":"Test User"}' \
+  --data '{"username":"test"}' \
   -w "\n"
 ```
 
-If everything is OK, you should see output that looks like this:
-
-```json
-{"publicKey": {"rp": {"name": "ACME Corporation"}, "user": {"id": "mxgsmiTKowofNg71mxPYxq4QX_YmzfQpX6bvrMnfC91AlzIh6L663p9rBqGKK5fOWjHrcriupYlMg2F4pWjujg", "name": "test", "displayName": "Test User"}, "timeout": 300000, "challenge": "Y3SLvrDyb42jNV6JRwr_XGsqN35gk-WEXdzWAKKZCOQ", "attestation": "none", "pubKeyCredParams": [{"alg": -7, "type": "public-key"}], "authenticatorSelection": {"userVerification": "discouraged", "requireResidentKey": true}}}
-```
-
-Use `psql` to check the content of the `webauthn.credential_challenges` table which should now contain one row:
-
-```sh
-uniphant@uniphant:~/uniphant$ psql uniphant
-psql (13.1 (Ubuntu 13.1-1.pgdg20.04+1))
-Type "help" for help.
-
-uniphant=# \x
-Expanded display is on.
-```
-
-```sql
-SELECT * FROM webauthn.credential_challenges
-
--[ RECORD 1 ]------+-----------------------------------------------------------------------------------------------------------------------------------
-challenge          | \x63748bbeb0f26f8da3355e89470aff5c6b2a377e6093e5845ddcd600a29908e4
-user_name          | test
-user_id            | \x9b182c9a24caa30a1f360ef59b13d8c6ae105ff626cdf4295fa6efacc9df0bdd40973221e8bebade9f6b06a18a2b97ce5a31eb72b8aea5894c836178a568ee8e
-user_display_name  | Test User
-relying_party_name | ACME Corporation
-relying_party_id   |
-user_verification  | discouraged
-attestation        | none
-timeout            | 00:05:00
-challenge_at       | 2020-12-26 12:23:57.560249+01
-```
-
-This is how far we get testing in the command line.
-
-To complete a real sign-up and sign-in, we need to use a real browser,
-since the private/public key pairs can't be easily generated from the command line,
-since they depend on an *Authenticator device*, either built-in TouchID/FaceID,
-or an external device like a Yubikey.
-
-To do so, browse to `http://localhost:8080` to test a real sign-up and sign-in.
-
-**Note:** Only works with Chrome and Safari. **Firefox** is currently **not supported** due to a [bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1530370).
-
-After sign-in and sign-up, you will see the new user in the `users` table and the generated token in the `tokens` table.
+Use `psql` to check the content of the `users` table which should now contain one row:
 
 ```sh
 uniphant@uniphant:~/uniphant$ psql uniphant
@@ -153,19 +118,21 @@ SELECT * FROM users;
 
 -[ RECORD 1 ]------+-----------------------------------------------------------------------------------------------------------------------------------
 user_id            | 1
-user_random_id     | \x1a31c094bc47e3d18f04bb9881447da3f0b48a3937139a0980d8b9c2c82a7d3502df96c4718d7e0d69ba22e44a8ddc6fec57875c65ec25a0fcf8a8b39c0dfce8
-username           | alex.p.mueller@example.com
-display_name       | Alex P. Müller
-sign_up_at         | 2020-12-25 19:55:01.411471+00
+user_random_id     | \x4e271a61903586427357f17d4e8e3c1c6a1512a6d6ce3d4de5748c9e15d0bb278e507f0df9911ea5c0d3b7bb159065eb867b5ac68acf92a649c293437fbe3410
+username           | test
+sign_up_at         | 2020-12-27 18:07:33.734656+01
 sign_up_ip         | 127.0.0.1
-make_credential_at | 2020-12-25 19:55:03.713913+00
-make_credential_ip | 127.0.0.1
-
-SELECT * FROM tokens;
-
--[ RECORD 1 ]-------------------------------------
-token       | ea487db4-d1c6-460a-8cf6-68da3e69d183
-user_id     | 1
-sign_in_at  | 2020-12-25 19:55:10.28184+00
-sign_out_at |
+make_credential_at |
+make_credential_ip |
 ```
+
+This is how far we get testing in the command line.
+
+To complete a real sign-up and sign-in, we need to use a real browser,
+since the private/public key pairs can't be easily generated from the command line,
+since they depend on an *Authenticator device*, either built-in TouchID/FaceID,
+or an external device like a Yubikey.
+
+To do so, browse to `http://localhost:8080` to test a real sign-up and sign-in.
+
+**Note:** Only works with Chrome and Safari. **Firefox** is currently **not supported** due to a [bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1530370).
