@@ -111,12 +111,7 @@ curl 'http://localhost/api/rpc/sign_up' \
 Use `psql` to check the content of the `users` table which should now contain one row:
 
 ```sh
-uniphant@uniphant:~/uniphant$ psql uniphant
-psql (13.1 (Ubuntu 13.1-1.pgdg20.04+1))
-Type "help" for help.
-
-uniphant=# \x
-Expanded display is on.
+psql -x uniphant
 ```
 
 ```sql
