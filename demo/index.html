@@ -28,7 +28,8 @@
 <button id="sign-up" disabled>Sign up</button>
 <button id="sign-in" disabled>Sign in</button>
 <button id="sign-out" disabled>Sign out</button>
-<button id="add-a-new-key" disabled>Add a new key</button>
+<button id="add-a-new-key" disabled>Add a new key on same device</button>
+<button id="add-a-new-key-other-device" disabled>Add a new key on other device</button>
 <div class="pre" id="log"></div>
 <script>
 
@@ -102,6 +103,29 @@
     });
   }
 
+  function add_new_key_other_device() {
+    if (document.getElementById("device-name").value === "") {
+      document.getElementById("log").innerHTML += "please enter a device_name\n";
+      document.getElementById("device-name").focus();
+      return;
+    }
+    document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
+    fetch("/api/rpc/init_credential", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+        "device_name" : document.getElementById("device-name").value
+      })
+    }).then(status).then(json).then(function(credential_creation_options) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
+      document.getElementById("log").innerHTML += window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge + "\n";
+    }).catch(function(error) {
+      document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
+    });
+  }
+
   function init_credential() {
     if (document.getElementById("device-name").value === "") {
       document.getElementById("log").innerHTML += "please enter a device_name\n";
@@ -117,30 +141,50 @@
       body: JSON.stringify({
         "device_name" : document.getElementById("device-name").value
       })
-    }).then(status).then(json).then(function(make_credential_options) {
-      console.log(make_credential_options);
-      document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
-      // base64 values needs to be decoded to Uint8Arrays:
-      make_credential_options.publicKey.challenge = buffer_decode(make_credential_options.publicKey.challenge);
-      make_credential_options.publicKey.user.id = buffer_decode(make_credential_options.publicKey.user.id);
-      if (make_credential_options.publicKey.excludeCredentials) {
-        for (let i = 0; i < make_credential_options.publicKey.excludeCredentials.length; i++) {
-          make_credential_options.publicKey.excludeCredentials[i].id = buffer_decode(make_credential_options.publicKey.excludeCredentials[i].id);
-        }
-      }
-      document.getElementById("log").innerHTML += "navigator.credentials.create()\n";
-      navigator.credentials.create(make_credential_options).then(function (new_credential) {
-        document.getElementById("log").innerHTML += "navigator.credentials.create() ok\n";
-        make_credential(new_credential, make_credential_options.publicKey.challenge);
-      }).catch(function (err) {
-        document.getElementById("log").innerHTML += "navigator.credentials.create() error\n";
-      });
+    }).then(status).then(json).then(function(credential_creation_options) {
+      create_credential(credential_creation_options);
     }).catch(function(error) {
       document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
     });
   }
 
-  function make_credential(new_credential) {
+  function get_credential_creation_options(challenge) {
+    document.getElementById("log").innerHTML += "POST /api/rpc/get_credential_creation_options\n";
+    fetch("/api/rpc/get_credential_creation_options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      body: JSON.stringify({
+        "challenge" : challenge
+      })
+    }).then(status).then(json).then(function(credential_creation_options) {
+      document.getElementById("log").innerHTML += "POST /api/rpc/get_credential_creation_options ok\n";
+      create_credential(credential_creation_options);
+    }).catch(function(error) {
+      document.getElementById("log").innerHTML += `POST /api/rpc/get_credential_creation_options error: ${error}\n`;
+    });
+  }
+
+  function create_credential(credential_creation_options) {
+    // base64 values needs to be decoded to Uint8Arrays:
+    credential_creation_options.publicKey.challenge = buffer_decode(credential_creation_options.publicKey.challenge);
+    credential_creation_options.publicKey.user.id = buffer_decode(credential_creation_options.publicKey.user.id);
+    if (credential_creation_options.publicKey.excludeCredentials) {
+      for (let i = 0; i < credential_creation_options.publicKey.excludeCredentials.length; i++) {
+        credential_creation_options.publicKey.excludeCredentials[i].id = buffer_decode(credential_creation_options.publicKey.excludeCredentials[i].id);
+      }
+    }
+    document.getElementById("log").innerHTML += "navigator.credentials.create()\n";
+    navigator.credentials.create(credential_creation_options).then(function (new_credential) {
+      document.getElementById("log").innerHTML += "navigator.credentials.create() ok\n";
+      store_credential(new_credential, credential_creation_options.publicKey.challenge);
+    }).catch(function (err) {
+      document.getElementById("log").innerHTML += "navigator.credentials.create() error\n";
+    });
+  }
+
+  function store_credential(new_credential) {
     let attestation_object = new Uint8Array(new_credential.response.attestationObject);
     let client_data_json = new Uint8Array(new_credential.response.clientDataJSON);
     let raw_id = new Uint8Array(new_credential.rawId);
@@ -165,6 +209,9 @@
       } else {
         document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
       }
+    }).catch(function (err) {
+      console.log(err);
+      document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
     });
   }
 
@@ -251,12 +298,14 @@
         document.getElementById("sign-in").disabled = false;
         document.getElementById("sign-out").disabled = true;
         document.getElementById("add-a-new-key").disabled = true;
+        document.getElementById("add-a-new-key-other-device").disabled = true;
       } else {
         document.getElementById("signed-in-div").innerHTML = `✅ signed in as ${username}`;
         document.getElementById("sign-up").disabled = true;
         document.getElementById("sign-in").disabled = true;
         document.getElementById("sign-out").disabled = false;
         document.getElementById("add-a-new-key").disabled = false;
+        document.getElementById("add-a-new-key-other-device").disabled = false;
       }
     }).catch(function(error) {
       document.getElementById("log").innerHTML += `POST /api/rpc/is_signed_in error: ${error}\n`;
@@ -280,12 +329,21 @@
     });
   }
 
+  function main() {
+    let challenge = new URLSearchParams(document.location.search).get("challenge");
+    if (challenge) {
+      window.history.replaceState(null, null, window.location.pathname);
+      get_credential_creation_options(challenge);
+    }
+    is_signed_in();
+  }
 
   document.getElementById("sign-up").addEventListener("click", sign_up);
   document.getElementById("sign-in").addEventListener("click", sign_in);
   document.getElementById("sign-out").addEventListener("click", sign_out);
   document.getElementById("add-a-new-key").addEventListener("click", init_credential);
-  document.addEventListener('DOMContentLoaded', is_signed_in);
+  document.getElementById("add-a-new-key-other-device").addEventListener("click", add_new_key_other_device);
+  document.addEventListener('DOMContentLoaded', main);
 </script>
 </body>
 </html>

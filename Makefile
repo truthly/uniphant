@@ -26,13 +26,15 @@ SQL_SRC = \
   FUNCTIONS/api/verify_assertion.sql \
 	FUNCTIONS/api/is_signed_in.sql \
 	FUNCTIONS/api/sign_out.sql \
-	FUNCTIONS/api/sign_up.sql
+	FUNCTIONS/api/sign_up.sql \
+	FUNCTIONS/api/get_credential_creation_options.sql
 
 uniphant--1.2.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
   complain_header.sql \
+	FUNCTIONS/api/get_credential_creation_options.sql \
   1.1--1.2.sql
 
 uniphant--1.1--1.2.sql: $(SQL_SRC)
