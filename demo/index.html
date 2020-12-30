@@ -30,6 +30,8 @@
 <button id="sign-out" disabled>Sign out</button>
 <button id="add-a-new-key" disabled>Add a new key on same device</button>
 <button id="add-a-new-key-other-device" disabled>Add a new key on other device</button>
+<input placeholder="challenge" type="text" id="challenge" />
+<button id="generate-key-from-challenge">Generate key from challenge</button>
 <div id="qr-code"></div>
 <div class="pre" id="log"></div>
 <script type="text/javascript" src="qrcode.min.js"></script>
@@ -122,6 +124,7 @@
       })
     }).then(status).then(json).then(function(credential_creation_options) {
       document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
+      document.getElementById("challenge").value = credential_creation_options.publicKey.challenge;
       let secret_challenge_url = window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge;
       document.getElementById("log").innerHTML += secret_challenge_url + "\n";
       new QRCode(document.getElementById("qr-code"), {
@@ -340,6 +343,12 @@
     });
   }
 
+  function generate_key_from_challenge() {
+    let challenge = document.getElementById("challenge").value;
+    get_credential_creation_options(challenge);
+    is_signed_in();
+  }
+
   function main() {
     let challenge = new URLSearchParams(document.location.search).get("challenge");
     if (challenge) {
@@ -354,6 +363,7 @@
   document.getElementById("sign-out").addEventListener("click", sign_out);
   document.getElementById("add-a-new-key").addEventListener("click", init_credential);
   document.getElementById("add-a-new-key-other-device").addEventListener("click", add_new_key_other_device);
+  document.getElementById("generate-key-from-challenge").addEventListener("click", generate_key_from_challenge);
   document.addEventListener('DOMContentLoaded', main);
 </script>
 </body>
