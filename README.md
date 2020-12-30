@@ -54,6 +54,7 @@ The following exact step-by-step instructions assume a clean installation of Ubu
 ```sh
 # postgresql:
 sudo apt-get -y dist-upgrade
+sudo apt-get -y install gnupg
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo apt-get update
@@ -68,14 +69,14 @@ createuser postgrest -I
 git clone https://github.com/truthly/pg-cbor.git
 (cd pg-cbor && make && sudo make install && make installcheck)
 # pg-ecdsa:
-git clone https://github.com/ameensol/pg-ecdsa.git
-(cd pg-ecdsa && PG_CFLAGS="-Wno-vla -Wno-declaration-after-statement -Wno-missing-prototypes" make && sudo make install && make installcheck)
+git clone https://github.com/truthly/pg-ecdsa.git
+(cd pg-ecdsa && make && sudo make install && make installcheck)
 # pg-webauthn:
 git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
 # uniphant:
 git clone https://github.com/truthly/uniphant.git
-cd uniphant || exit
+cd uniphant || exit
 (make && sudo make install && make installcheck)
 psql -c "CREATE EXTENSION uniphant CASCADE" uniphant
 # postgrest:
