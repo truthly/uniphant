@@ -54,6 +54,8 @@ The following exact step-by-step instructions assume a clean installation of Ubu
 ```sh
 # postgresql:
 sudo apt-get -y dist-upgrade
+sudo locale-gen "en_US.UTF-8"
+sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 sudo apt-get -y install gnupg
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
@@ -61,7 +63,7 @@ sudo apt-get update
 sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
-createdb uniphant
+createdb -E UTF8 -l en_US.UTF-8 uniphant
 createuser api -L -s
 createuser web_anon -L
 createuser postgrest -I
