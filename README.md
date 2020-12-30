@@ -6,8 +6,13 @@
 </p>
 
 1. [About](#about)
-2. [Dependencies](#dependencies)
-3. [Installation](#installation)
+1. [Dependencies](#dependencies)
+1. [Installation](#installation)
+    1. [Running Ubuntu in VirtualBox](#virtualbox)
+    1. [Ubuntu 20.04.1](#ubuntu)
+    1. [Setting up SSL/TLS using Let's Encrypt/Certbot](#certbot)
+
+[Running Ubuntu in VirtualBox]: #virtualbox
 
 <h2 id="about">1. About</h2>
 
@@ -23,7 +28,7 @@
 
 <h2 id="installation">3. Installation</h2>
 
-<h3 id="installation-osx">3.1. Running Ubuntu in VirtualBox</h3>
+<h3 id="virtualbox">3.1. Running Ubuntu in VirtualBox</h3>
 
 1. Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
 1. Download [ubuntu-20.04.1-live-server-amd64.iso](https://releases.ubuntu.com/20.04/ubuntu-20.04.1-live-server-amd64.iso)
@@ -41,7 +46,7 @@
     1. Import SSH identity: **from GitHub**
     1. GitHub username: **[Enter your GitHub username]**
 
-<h3 id="installation-osx">3.2. Ubuntu 20.04.1</h3>
+<h3 id="ubuntu">3.2. Ubuntu 20.04.1</h3>
 
 Connect to your VirtualBox machine, assuming the forwarded Host Port is **2200** and the username is **uniphant**:
 
@@ -140,3 +145,12 @@ or an external device like a Yubikey.
 To do so, browse to `http://localhost:8080` to test a real sign-up and sign-in.
 
 **Note:** Only works with Chrome and Safari. **Firefox** is currently **not supported** due to a [bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1530370).
+
+<h3 id="certbot">Setting up SSL/TLS using Let's Encrypt/Certbot</h3>
+
+```sh
+sudo snap install core; sudo snap refresh core
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+sudo certbot --nginx
+```
