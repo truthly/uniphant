@@ -30,7 +30,9 @@
 <button id="sign-out" disabled>Sign out</button>
 <button id="add-a-new-key" disabled>Add a new key on same device</button>
 <button id="add-a-new-key-other-device" disabled>Add a new key on other device</button>
+<div id="qr-code"></div>
 <div class="pre" id="log"></div>
+<script type="text/javascript" src="qrcode.min.js"></script>
 <script>
 
   // This file is based on: https://webauthn.io/dist/js/webauthn.js
@@ -120,7 +122,16 @@
       })
     }).then(status).then(json).then(function(credential_creation_options) {
       document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
-      document.getElementById("log").innerHTML += window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge + "\n";
+      let secret_challenge_url = window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge;
+      document.getElementById("log").innerHTML += secret_challenge_url + "\n";
+      new QRCode(document.getElementById("qr-code"), {
+        text: secret_challenge_url,
+        width: 256,
+        height: 256,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
     }).catch(function(error) {
       document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
     });
