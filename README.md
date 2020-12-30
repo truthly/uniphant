@@ -63,7 +63,7 @@ sudo apt-get update
 sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
-createdb -E UTF8 -l en_US.UTF-8 uniphant
+createdb -E UTF8 uniphant
 createuser api -L -s
 createuser web_anon -L
 createuser postgrest -I
