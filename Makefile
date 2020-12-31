@@ -1,14 +1,14 @@
 EXTENSION = uniphant
-DATA = uniphant--1.2.sql uniphant--1.1--1.2.sql
+DATA = uniphant--1.3.sql uniphant--1.2--1.3.sql
 
 REGRESS = test
-EXTRA_CLEAN = uniphant--1.2.sql uniphant--1.1--1.2.sql
+EXTRA_CLEAN = uniphant--1.3.sql uniphant--1.2--1.3.sql
 
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
-all: uniphant--1.2.sql uniphant--1.1--1.2.sql
+all: uniphant--1.3.sql uniphant--1.2--1.3.sql
 
 SQL_SRC = \
   complain_header.sql \
@@ -21,7 +21,7 @@ SQL_SRC = \
 	FUNCTIONS/issue_access_token.sql \
 	FUNCTIONS/user_id.sql \
 	FUNCTIONS/api/init_credential.sql \
-  FUNCTIONS/api/make_credential.sql \
+  FUNCTIONS/api/store_credential.sql \
   FUNCTIONS/api/get_credentials.sql \
   FUNCTIONS/api/verify_assertion.sql \
 	FUNCTIONS/api/is_signed_in.sql \
@@ -29,13 +29,13 @@ SQL_SRC = \
 	FUNCTIONS/api/sign_up.sql \
 	FUNCTIONS/api/get_credential_creation_options.sql
 
-uniphant--1.2.sql: $(SQL_SRC)
+uniphant--1.3.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
   complain_header.sql \
-	FUNCTIONS/api/get_credential_creation_options.sql \
-  1.1--1.2.sql
+	FUNCTIONS/api/store_credential.sql \
+  1.2--1.3.sql
 
-uniphant--1.1--1.2.sql: $(SQL_SRC)
+uniphant--1.2--1.3.sql: $(SQL_SRC)
 	cat $^ > $@

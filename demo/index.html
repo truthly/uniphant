@@ -33,7 +33,8 @@
 <input placeholder="challenge" type="text" id="challenge" />
 <button id="generate-key-from-challenge">Generate key from challenge</button>
 <div id="qr-code"></div>
-<div class="pre" id="log"></div>
+<div id="challenge-url" class="pre"></div>
+</div><div class="pre" id="log"></div>
 <script type="text/javascript" src="qrcode.min.js"></script>
 <script>
 
@@ -124,9 +125,8 @@
       })
     }).then(status).then(json).then(function(credential_creation_options) {
       document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
-      document.getElementById("challenge").value = credential_creation_options.publicKey.challenge;
       let secret_challenge_url = window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge;
-      document.getElementById("log").innerHTML += secret_challenge_url + "\n";
+      document.getElementById("challenge-url").innerHTML = secret_challenge_url;
       new QRCode(document.getElementById("qr-code"), {
         text: secret_challenge_url,
         width: 256,
@@ -202,8 +202,8 @@
     let attestation_object = new Uint8Array(new_credential.response.attestationObject);
     let client_data_json = new Uint8Array(new_credential.response.clientDataJSON);
     let raw_id = new Uint8Array(new_credential.rawId);
-    document.getElementById("log").innerHTML += "POST /api/rpc/make_credential\n";
-    fetch("/api/rpc/make_credential", {
+    document.getElementById("log").innerHTML += "POST /api/rpc/store_credential\n";
+    fetch("/api/rpc/store_credential", {
       method: "POST",
       headers: {
         "Content-Type": "application/json;charset=utf-8"
@@ -216,16 +216,16 @@
       })
     }).then(status).then(json).then(function(status) {
       if (status) {
-        document.getElementById("log").innerHTML += "POST /api/rpc/make_credential ok\n";
+        document.getElementById("log").innerHTML += "POST /api/rpc/store_credential ok\n";
         document.getElementById("username").value = "";
         document.getElementById("device-name").value = "";
         document.getElementById("log").innerHTML += "✅ credential created successfully\n";
       } else {
-        document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
+        document.getElementById("log").innerHTML += "POST /api/rpc/store_credential error\n";
       }
     }).catch(function (err) {
       console.log(err);
-      document.getElementById("log").innerHTML += "POST /api/rpc/make_credential error\n";
+      document.getElementById("log").innerHTML += "POST /api/rpc/store_credential error\n";
     });
   }
 
@@ -344,18 +344,25 @@
   }
 
   function generate_key_from_challenge() {
+    if (document.getElementById("challenge").value === "") {
+      document.getElementById("log").innerHTML += "please enter the challenge\n";
+      document.getElementById("challenge").focus();
+      return;
+    }
     let challenge = document.getElementById("challenge").value;
     get_credential_creation_options(challenge);
     is_signed_in();
   }
 
   function main() {
+    is_signed_in();
     let challenge = new URLSearchParams(document.location.search).get("challenge");
     if (challenge) {
       window.history.replaceState(null, null, window.location.pathname);
-      get_credential_creation_options(challenge);
+      document.getElementById("challenge").value = challenge;
+      document.getElementById("generate-key-from-challenge").focus();
+      document.getElementById("log").innerHTML += "challenge loaded, proceed by clicking [Generate key from challenge]\n";
     }
-    is_signed_in();
   }
 
   document.getElementById("sign-up").addEventListener("click", sign_up);

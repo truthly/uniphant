@@ -131,8 +131,8 @@ user_random_id     | \x4e271a61903586427357f17d4e8e3c1c6a1512a6d6ce3d4de5748c9e1
 username           | test
 sign_up_at         | 2020-12-27 18:07:33.734656+01
 sign_up_ip         | 127.0.0.1
-make_credential_at |
-make_credential_ip |
+store_credential_at |
+store_credential_ip |
 ```
 
 This is how far we get testing in the command line.
