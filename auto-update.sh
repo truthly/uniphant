@@ -8,6 +8,6 @@
 cd $(dirname "$0") || exit
 DATABASE_NAME=uniphant
 (cd pg-cbor && git pull && make && make install && make installcheck && psql -c "ALTER EXTENSION cbor UPDATE" $DATABASE_NAME)
-(cd pg-ecdsa && make && make install && make installcheck && psql -c "ALTER EXTENSION ecdsa UPDATE" $DATABASE_NAME)
-(cd pg-webauthn && make && make install && make installcheck && psql -c "ALTER EXTENSION webauthn UPDATE" $DATABASE_NAME)
+(cd pg-ecdsa && git pull && make && make install && make installcheck && psql -c "ALTER EXTENSION ecdsa UPDATE" $DATABASE_NAME)
+(cd pg-webauthn && git pull && make && make install && make installcheck && psql -c "ALTER EXTENSION webauthn UPDATE" $DATABASE_NAME)
 git pull && make && make install && make installcheck && psql -c "ALTER EXTENSION uniphant UPDATE" $DATABASE_NAME
