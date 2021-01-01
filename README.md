@@ -129,10 +129,6 @@ SELECT * FROM users;
 user_id            | 1
 user_random_id     | \x4e271a61903586427357f17d4e8e3c1c6a1512a6d6ce3d4de5748c9e15d0bb278e507f0df9911ea5c0d3b7bb159065eb867b5ac68acf92a649c293437fbe3410
 username           | test
-sign_up_at         | 2020-12-27 18:07:33.734656+01
-sign_up_ip         | 127.0.0.1
-store_credential_at |
-store_credential_ip |
 ```
 
 This is how far we get testing in the command line.
@@ -153,4 +149,17 @@ sudo snap install core; sudo snap refresh core
 sudo snap install --classic certbot
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 sudo certbot --nginx
+```
+
+<h3 id="pg_listen">Setting up pg_listen to reload schema automatically</h3>
+
+```sh
+# pg_listen:
+git clone https://github.com/begriffs/pg_listen.git
+cd pg_listen || exit
+export PKG_CONFIG_PATH=~/postgresql/src/interfaces/libpq
+make
+cp pg_listen /usr/local/bin/
+cp postgrest-reload-schema.sh /usr/local/bin/
+pg_listen postgres://postgrest@/uniphant ddl_command_end $(which postgrest-reload-schema.sh)
 ```

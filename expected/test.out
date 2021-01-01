@@ -59,28 +59,35 @@ SELECT remote_ip();
  192.168.123.123
 (1 row)
 
-SELECT api.sign_up(username := 'test');
- sign_up 
----------
+SELECT set_config('request.path','/rpc/sign_up',FALSE);
+  set_config  
+--------------
+ /rpc/sign_up
+(1 row)
+
+SELECT auth();
+ auth 
+------
+ 
+(1 row)
+
+SELECT api.sign_up(username := 'test', device_name := 'iPhone') IS NOT NULL;
+ ?column? 
+----------
  t
 (1 row)
 
 SELECT user_id, username FROM users;
- user_id | username 
----------+----------
+ user_id | username  
+---------+-----------
+       0 | anonymous
        1 | test
-(1 row)
+(2 rows)
 
 SELECT user_id FROM access_tokens;
  user_id 
 ---------
        1
-(1 row)
-
-SELECT api.sign_out();
- sign_out 
-----------
- t
 (1 row)
 
 ROLLBACK;

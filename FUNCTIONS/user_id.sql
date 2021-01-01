@@ -2,9 +2,8 @@ CREATE OR REPLACE FUNCTION user_id()
 RETURNS bigint
 STABLE
 LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
-SELECT access_tokens.user_id
-FROM access_tokens
-WHERE access_tokens.access_token = NULLIF(current_setting('request.cookie.access_token', TRUE),'')::uuid
-AND (access_tokens.expire_at > now()) IS NOT FALSE;
+SELECT current_setting('uniphant.user_id',FALSE)::bigint
 $$;

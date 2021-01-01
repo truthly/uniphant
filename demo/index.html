@@ -10,47 +10,99 @@
 .pre {
     white-space: pre;
     font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-    display: block;
-    unicode-bidi: embed
 }
-#signed-in-div {
+.float-right {
   float:right;
   margin-right:10px;
   clear:both;
+  border: 0px !important;
+}
+label, button, input {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  margin: 5px;
+}
+.resource-on {
+  display: table;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  border: 1px solid black;
+  padding: 10px;
+  margin: 20px;
+}
+td {
+  border: 1px dotted grey;
+}
+.hidden {
+  display: none !important;
+}
+.close {
+  cursor: pointer;
 }
 </style>
 </head>
 <body>
-<div id="signed-in-div" class="pre"></div>
+<div id="/current_user-div" class="pre float-right"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
-<input placeholder="username" type="text" id="username" autofocus required />
-<input placeholder="device-name" type="text" id="device-name" required />
-<button id="sign-up" disabled>Sign up</button>
-<button id="sign-in" disabled>Sign in</button>
-<button id="sign-out" disabled>Sign out</button>
-<button id="add-a-new-key" disabled>Add a new key on same device</button>
-<button id="add-a-new-key-other-device" disabled>Add a new key on other device</button>
-<input placeholder="challenge" type="text" id="challenge" />
-<button id="generate-key-from-challenge">Generate key from challenge</button>
-<div id="qr-code"></div>
-<div id="challenge-url" class="pre"></div>
+<div id="qr" class="hidden resource-on">
+  <div id="close-qr" class="float-right close">&times;</div>
+  <div id="qr-code"></div>
+  <code id="challenge-url"></code>
+  <button onclick="copy_to_clipboard('challenge-url')" title="Copy to clipboard">📋</button>
+</div>
+<div id="resources">
+  <!-- Signed-in: -->
+  <div id="/rpc/sign_out-div" class="resource"></div>
+  <div id="/rpc/init_credential-div" class="resource"></div>
+  <div id="/user_credentials-div" class="resource"></div>
+  <div id="/credentials-div" class="resource"></div>
+  <div id="/rpc/update_credential_validity-div" class="resource"></div>
+  <div id="/users-div" class="resource"></div>
+  <div id="/rpc/create_user-div" class="resource"></div>
+  <div id="/roles-div" class="resource"></div>
+  <div id="/rpc/create_role-div" class="resource"></div>
+  <div id="/role_memberships-div" class="resource"></div>
+  <div id="/rpc/grant_role_to_user-div" class="resource"></div>
+  <div id="/resources-div" class="resource"></div>
+  <div id="/permissions-div" class="resource"></div>
+  <div id="/rpc/grant_resource_to_role-div" class="resource"></div>
+  <!-- Signed-out: -->
+  <div id="/rpc/sign_up-div" class="resource"></div>
+  <div id="/rpc/get_credential_creation_options-div" class="resource"></div>
+  <div id="/rpc/sign_in-div" class="resource"></div>
+  <div id="/rpc/store_credential-div" class="resource hidden"></div>
+  <div id="/rpc/verify_assertion-div" class="resource hidden"></div>
+  <div id="/rpc/openapi_swagger-div" class="resource hidden"></div>
+  <!-- Signed-in/Signed-out: -->
+  <div id="/user_resources-div" class="resource"></div>
+  <div id="/user_role_memberships-div" class="resource"></div>
+</div>
 <div class="pre" id="log"></div>
 <script type="text/javascript" src="qrcode.min.js"></script>
 <script>
+  // The WebAuthn code in this file is based on:
+  // https://webauthn.io/dist/js/webauthn.js
 
-  // This file is based on: https://webauthn.io/dist/js/webauthn.js
+  let api_url = "/api";
+
+  //
+  // Common helper-functions
+  //
+
+  function log(message) {
+    let o = document.getElementById("log");
+    o.innerHTML = message + "\n" + o.innerHTML;
+  }
 
   function buffer_decode(value) {
-    let new_value = (value + '==='.slice((value.length + 3) % 4))
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
+    let new_value = (value + "===".slice((value.length + 3) % 4))
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
     return Uint8Array.from(atob(new_value), c => c.charCodeAt(0));
   }
 
   // Encode an ArrayBuffer into a base64url string.
   // Taken from: https://gist.github.com/Deliaz/e89e9a014fea1ec47657d1aac3baa83c
   function buffer_encode(buffer) {
-    let binary = '';
+    let binary = "";
     let bytes = new Uint8Array(buffer);
     let len = bytes.byteLength;
     for (let i = 0; i < len; i++) {
@@ -60,6 +112,39 @@
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=/g, "");
+  }
+
+  function json_to_table(caption,json) {
+    let headerRow = "";
+    let rows = "";
+    if (json.length > 0) {
+      let cols = Object.keys(json[0]);
+      headerRow = cols.map(col => `<th>${col}</th>`).join("");
+      rows = json.map(row => {
+        let tds = cols.map(col => `<td>${row[col]}</td>`).join("");
+        return `<tr>${tds}</tr>`;
+      }).join("");
+    }
+    const table = `
+    <table>
+      <caption>${caption}</caption>
+      <thead>
+        <tr>${headerRow}</tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>`;
+    return table;
+  }
+
+  function copy_to_clipboard(element_id) {
+    let input_element = document.createElement("input");
+    input_element.setAttribute("value", document.getElementById(element_id).innerHTML);
+    document.body.appendChild(input_element);
+    input_element.select();
+    document.execCommand("copy");
+    document.body.removeChild(input_element);
   }
 
   function status(response) {
@@ -74,57 +159,30 @@
     return response.json()
   }
 
-  function sign_up() {
-    if (document.getElementById("username").value === "") {
-      document.getElementById("log").innerHTML += "please enter a username\n";
-      document.getElementById("username").focus();
-      return;
-    }
-    if (document.getElementById("device-name").value === "") {
-      document.getElementById("log").innerHTML += "please enter a device_name\n";
-      document.getElementById("device-name").focus();
-      return;
-    }
-    document.getElementById("log").innerHTML += "POST /api/rpc/sign_up\n";
-    fetch("/api/rpc/sign_up", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({
-        "username" : document.getElementById("username").value
-      })
-    }).then(status).then(json).then(function(ret) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/sign_up ok\n";
-      if (ret === true) {
-        document.getElementById("log").innerHTML += `✅ signed up\n`;
-      } else {
-        document.getElementById("log").innerHTML += "❌ sign up failed\n";
-      }
-      is_signed_in();
-      init_credential();
-    }).catch(function(error) {
-      document.getElementById("log").innerHTML += `POST /api/rpc/sign_up error: ${error}\n`;
-    });
-  }
+  //
+  // Response handler functions
+  //
 
-  function add_new_key_other_device() {
-    if (document.getElementById("device-name").value === "") {
-      document.getElementById("log").innerHTML += "please enter a device_name\n";
-      document.getElementById("device-name").focus();
-      return;
+  let response_handlers = {};
+
+  response_handlers["/current_user"] = function (current_user) {
+    if (current_user[0].user_id === 0) {
+      return "";
+    } else {
+      return `✅ signed in as ${current_user[0].username}<br/><small>user_id ${current_user[0].user_id}</small>`;
     }
-    document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
-    fetch("/api/rpc/init_credential", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({
-        "device_name" : document.getElementById("device-name").value
-      })
-    }).then(status).then(json).then(function(credential_creation_options) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/init_credential ok\n";
+  };
+
+  response_handlers["/rpc/sign_up"] = function (credential_creation_options) {
+    create_credential(credential_creation_options);
+  };
+
+  response_handlers["/rpc/init_credential"] = function (ret) {
+    let credential_creation_options = ret[0].credential_creation_options;
+    let other_device = ret[0].other_device;
+    if (!other_device) {
+      create_credential(credential_creation_options);
+    } else {
       let secret_challenge_url = window.location.origin + window.location.pathname + "?challenge=" + credential_creation_options.publicKey.challenge;
       document.getElementById("challenge-url").innerHTML = secret_challenge_url;
       new QRCode(document.getElementById("qr-code"), {
@@ -135,50 +193,36 @@
         colorLight : "#ffffff",
         correctLevel : QRCode.CorrectLevel.H
       });
-    }).catch(function(error) {
-      document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
-    });
-  }
-
-  function init_credential() {
-    if (document.getElementById("device-name").value === "") {
-      document.getElementById("log").innerHTML += "please enter a device_name\n";
-      document.getElementById("device-name").focus();
-      return;
+      document.getElementById("qr").classList.remove("hidden");
     }
-    document.getElementById("log").innerHTML += "POST /api/rpc/init_credential\n";
-    fetch("/api/rpc/init_credential", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({
-        "device_name" : document.getElementById("device-name").value
-      })
-    }).then(status).then(json).then(function(credential_creation_options) {
-      create_credential(credential_creation_options);
-    }).catch(function(error) {
-      document.getElementById("log").innerHTML += `POST /api/rpc/init_credential error: ${error}\n`;
+  };
+
+  response_handlers["/rpc/get_credential_creation_options"] = function (credential_creation_options) {
+    create_credential(credential_creation_options);
+  };
+
+  response_handlers["/rpc/sign_in"] = function (make_assertion_options) {
+    make_assertion_options.publicKey.challenge = buffer_decode(make_assertion_options.publicKey.challenge);
+    if (make_assertion_options.publicKey.allowCredentials) {
+      make_assertion_options.publicKey.allowCredentials.forEach(function (list_item) {
+        list_item.id = buffer_decode(list_item.id)
+      });
+    }
+    log("navigator.credentials.get()");
+    navigator.credentials.get({
+      publicKey: make_assertion_options.publicKey
+    }).then(function (asserted_credential) {
+      log("navigator.credentials.get() ok");
+      verify_assertion(asserted_credential);
+    }).catch(function (err) {
+      console.log(err);
+      log("navigator.credentials.get() error");
     });
   }
 
-  function get_credential_creation_options(challenge) {
-    document.getElementById("log").innerHTML += "POST /api/rpc/get_credential_creation_options\n";
-    fetch("/api/rpc/get_credential_creation_options", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({
-        "challenge" : challenge
-      })
-    }).then(status).then(json).then(function(credential_creation_options) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/get_credential_creation_options ok\n";
-      create_credential(credential_creation_options);
-    }).catch(function(error) {
-      document.getElementById("log").innerHTML += `POST /api/rpc/get_credential_creation_options error: ${error}\n`;
-    });
-  }
+  //
+  // Response handler helper-functions
+  //
 
   function create_credential(credential_creation_options) {
     // base64 values needs to be decoded to Uint8Arrays:
@@ -189,12 +233,12 @@
         credential_creation_options.publicKey.excludeCredentials[i].id = buffer_decode(credential_creation_options.publicKey.excludeCredentials[i].id);
       }
     }
-    document.getElementById("log").innerHTML += "navigator.credentials.create()\n";
+    log("navigator.credentials.create()");
     navigator.credentials.create(credential_creation_options).then(function (new_credential) {
-      document.getElementById("log").innerHTML += "navigator.credentials.create() ok\n";
+      log("navigator.credentials.create() ok");
       store_credential(new_credential, credential_creation_options.publicKey.challenge);
     }).catch(function (err) {
-      document.getElementById("log").innerHTML += "navigator.credentials.create() error\n";
+      log("navigator.credentials.create() error");
     });
   }
 
@@ -202,7 +246,7 @@
     let attestation_object = new Uint8Array(new_credential.response.attestationObject);
     let client_data_json = new Uint8Array(new_credential.response.clientDataJSON);
     let raw_id = new Uint8Array(new_credential.rawId);
-    document.getElementById("log").innerHTML += "POST /api/rpc/store_credential\n";
+    log("POST /api/rpc/store_credential");
     fetch("/api/rpc/store_credential", {
       method: "POST",
       headers: {
@@ -214,52 +258,20 @@
         "attestation_object" : buffer_encode(attestation_object),
         "client_data_json" : buffer_encode(client_data_json)
       })
-    }).then(status).then(json).then(function(status) {
-      if (status) {
-        document.getElementById("log").innerHTML += "POST /api/rpc/store_credential ok\n";
-        document.getElementById("username").value = "";
-        document.getElementById("device-name").value = "";
-        document.getElementById("log").innerHTML += "✅ credential created successfully\n";
+    }).then(status).then(json).then(function(valid) {
+      log("POST /api/rpc/store_credential ok");
+      if (valid === true) {
+        log("✅ credential created successfully");
+        refresh();
+      } else if (valid === false) {
+        log("🔜 credential created successfully, but has to be marked as valid by your sysadmin before it can be used to sign-in");
+        refresh();
       } else {
-        document.getElementById("log").innerHTML += "POST /api/rpc/store_credential error\n";
+        log("Unexpected valid value: " + valid);
       }
     }).catch(function (err) {
       console.log(err);
-      document.getElementById("log").innerHTML += "POST /api/rpc/store_credential error\n";
-    });
-  }
-
-  function sign_in() {
-    document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials\n";
-    fetch("/api/rpc/get_credentials", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({})
-    }).then(status).then(json).then(function(make_assertion_options) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials ok\n";
-      make_assertion_options.publicKey.challenge = buffer_decode(make_assertion_options.publicKey.challenge);
-      console.log(make_assertion_options.publicKey);
-      if (make_assertion_options.publicKey.allowCredentials) {
-        make_assertion_options.publicKey.allowCredentials.forEach(function (list_item) {
-          list_item.id = buffer_decode(list_item.id)
-        });
-      }
-      document.getElementById("log").innerHTML += "navigator.credentials.get()\n";
-      navigator.credentials.get({
-        publicKey: make_assertion_options.publicKey
-      })
-      .then(function (asserted_credential) {
-        document.getElementById("log").innerHTML += "navigator.credentials.get() ok\n";
-        verify_assertion(asserted_credential);
-      }).catch(function (err) {
-        console.log(err);
-        document.getElementById("log").innerHTML += "navigator.credentials.get() error\n";
-      });
-    }).catch(function (err) {
-      console.log(err);
-      document.getElementById("log").innerHTML += "POST /api/rpc/get_credentials error\n";
+      log("POST /api/rpc/store_credential error");
     });
   }
 
@@ -269,7 +281,7 @@
     let credential_raw_id = new Uint8Array(asserted_credential.rawId);
     let signature = new Uint8Array(asserted_credential.response.signature);
     let user_handle = new Uint8Array(asserted_credential.response.userHandle);
-    document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion\n";
+    log("POST /api/rpc/verify_assertion");
     fetch("/api/rpc/verify_assertion", {
       method: "POST",
       headers: {
@@ -284,94 +296,175 @@
         "user_handle" : buffer_encode(user_handle)
       })
     }).then(status).then(json).then(function(ret) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion ok\n";
+      log("POST /api/rpc/verify_assertion ok");
       if (ret === true) {
-        document.getElementById("log").innerHTML += `✅ signed in\n`;
+        log("✅ signed in");
       } else {
-        document.getElementById("log").innerHTML += "❌ sign in failed\n";
+        log("❌ sign in failed");
       }
-      is_signed_in();
+      refresh();
     }).catch(function (err) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/verify_assertion error\n";
+      log("POST /api/rpc/verify_assertion error");
     });
   }
 
-  function is_signed_in() {
-    document.getElementById("log").innerHTML += "POST /api/rpc/is_signed_in\n";
-    fetch("/api/rpc/is_signed_in", {
-      method: "POST",
+  //
+  // Create/Refresh UI from OpenAPI Swagger spec
+  //
+
+  function refresh() {
+    let openapi_swagger_path = api_url + "/rpc/openapi_swagger";
+    log(`GET ${openapi_swagger_path}`);
+    fetch(openapi_swagger_path, {
+      method: "GET",
       headers: {
         "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({})
-    }).then(status).then(json).then(function(username) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/is_signed_in ok\n";
-      if (username === null) {
-        document.getElementById("signed-in-div").innerHTML = "";
-        document.getElementById("sign-up").disabled = false;
-        document.getElementById("sign-in").disabled = false;
-        document.getElementById("sign-out").disabled = true;
-        document.getElementById("add-a-new-key").disabled = true;
-        document.getElementById("add-a-new-key-other-device").disabled = true;
-      } else {
-        document.getElementById("signed-in-div").innerHTML = `✅ signed in as ${username}`;
-        document.getElementById("sign-up").disabled = true;
-        document.getElementById("sign-in").disabled = true;
-        document.getElementById("sign-out").disabled = false;
-        document.getElementById("add-a-new-key").disabled = false;
-        document.getElementById("add-a-new-key-other-device").disabled = false;
+      }
+    }).then(status).then(json).then(function(api_spec) {
+      log(`GET ${openapi_swagger_path} ok`);
+      Array.from(document.getElementsByClassName("resource")).forEach((resource_div) => {
+        if (!api_spec.paths.hasOwnProperty(resource_div.id.replace(/-div$/, ""))
+        && !resource_div.classList.contains("hidden")
+        && resource_div.classList.contains("resource-on")) {
+          resource_div.innerHTML = "";
+          resource_div.classList.remove("resource-on");
+        }
+      });
+      Object.entries(api_spec.paths).forEach(resource => {
+        const [resource_path, resource_methods] = resource;
+        if (resource_methods.hasOwnProperty("get")) {
+          console.log(resource_methods);
+          let resource_name = resource_methods.get.hasOwnProperty("summary") ? resource_methods.get.summary : resource_path;
+          // Views
+          fetch(api_url + resource_path, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json;charset=utf-8"
+            }
+          }).then(status).then(json).then(function(view_data) {
+            log(`GET ${resource_path} ok`);
+            let target_div = document.getElementById(`${resource_path}-div`);
+            let resource_html = 
+              (typeof response_handlers[resource_path] === "function")
+              ? response_handlers[resource_path](view_data)
+              : json_to_table(resource_name, view_data);
+            if (target_div == null) {
+              let em = document.getElementById("resources");
+              em.innerHTML = `
+                <div id="${resource_path}-div" class="resource resource-on">
+                ${resource_html}
+                </div>
+              ` + em.innerHTML;
+            } else if (!target_div.classList.contains("hidden")) {
+              target_div.innerHTML = resource_html;
+              if (!target_div.classList.contains("resource-on")) {
+                target_div.classList.add("resource-on");
+              }
+            }
+          });
+        } else if (resource_methods.hasOwnProperty("post")) {
+          // Functions
+          let target_div = document.getElementById(`${resource_path}-div`);
+          if (target_div == null || target_div.innerHTML === "") {
+            let resource_name = resource_methods.post.hasOwnProperty("summary") ? resource_methods.post.summary : resource_path;
+            let schema = resource_methods.post.parameters[0].schema;
+            let required = schema.hasOwnProperty("required") ? schema.required : [];
+            let input_fields_html = "";
+            if (schema.hasOwnProperty("properties")) {
+              Object.entries(schema.properties).forEach(property => {
+                const [input_parameter_name, input_parameter_type_format] = property;
+                let required_html = required.includes(input_parameter_name) ? " required" : "";
+                if (input_parameter_type_format.type === "boolean") {
+                  input_fields_html += `<input id="${resource_path}-${input_parameter_name}" type="checkbox" name="${input_parameter_name}" class="${resource_path}" ${required_html} />\n`;
+                  input_fields_html += `<label for="${resource_path}-${input_parameter_name}">${input_parameter_name}</label>\n`;
+                } else {
+                  input_fields_html += `<input placeholder="${input_parameter_name}" type="text" name="${input_parameter_name}" class="${resource_path}" ${required_html} />\n`;
+                }
+              });
+            }
+            let resource_html = `
+                ${input_fields_html}
+                <button id="${resource_path}" class="fetch-resource">${resource_name}</button>
+            `;
+            if (target_div == null) {
+              let em = document.getElementById("resources");
+              em.innerHTML = `
+                <div id="${resource_path}-div" class="resource">
+                  ${resource_html}
+                </div>
+              ` + em.innerHTML;
+            } else if (!target_div.classList.contains("hidden")) {
+              target_div.innerHTML = resource_html;
+              if (!target_div.classList.contains("resource-on")) {
+                target_div.classList.add("resource-on");
+              }
+            }
+          }
+        }
+      });
+      // Any code that should run once after UI has been updated from API spec:
+      let challenge_value = new URLSearchParams(document.location.search).get("challenge");
+      let challenge_object = Array.from(document.getElementsByClassName("/rpc/get_credential_creation_options")).find(em => em.tagName === "INPUT" && em.name === "challenge");
+      if (challenge_value && challenge_object) {
+        window.history.replaceState(null, null, window.location.pathname);
+        challenge_object.value = challenge_value;
+        document.getElementById("/rpc/get_credential_creation_options").focus();
       }
     }).catch(function(error) {
-      document.getElementById("log").innerHTML += `POST /api/rpc/is_signed_in error: ${error}\n`;
+      console.log(error);
+      log(`GET ${openapi_swagger_path} error: ${error}`);
     });
   }
 
-  function sign_out() {
-    document.getElementById("log").innerHTML += "POST /api/rpc/sign_out\n";
-    fetch("/api/rpc/sign_out", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8"
-      },
-      body: JSON.stringify({})
-    }).then(status).then(json).then(function(ok) {
-      document.getElementById("log").innerHTML += "POST /api/rpc/sign_out ok\n";
-      is_signed_in();
-    }).catch(function (err) {
-      console.log(err);
-      document.getElementById("log").innerHTML += "POST /api/rpc/sign_out error\n";
+  document.addEventListener("DOMContentLoaded", refresh);
+
+  Array.from(document.getElementsByClassName("close")).forEach((em) => {
+    em.addEventListener("click", event => {
+      event.target.parentElement.classList.add("hidden");
     });
-  }
+  });
 
-  function generate_key_from_challenge() {
-    if (document.getElementById("challenge").value === "") {
-      document.getElementById("log").innerHTML += "please enter the challenge\n";
-      document.getElementById("challenge").focus();
-      return;
+  document.getElementById("resources").addEventListener("click", event => {
+    if (event.target.className === "fetch-resource") {
+      let resource_path = event.target.id;
+      let input_params = {};
+      let missing = false;
+      Array.from(document.getElementsByClassName(resource_path)).filter(em => em.tagName === "INPUT").forEach((em) => {
+        if (em.hasAttribute("required") && em.value === "" && em.getAttribute("type") !== "checkbox") {
+          if (!missing) {
+            em.focus();
+            missing = true;
+          }
+        }
+        if (em.getAttribute("type") === "checkbox") {
+          input_params[em.name] = em.checked;
+        } else {
+          input_params[em.name] = em.value;
+        }
+        em.value = "";
+      });
+      if (missing) {
+        return;
+      }
+      let request_url = api_url + resource_path;
+      log(`POST ${request_url}`);
+      fetch(request_url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json;charset=utf-8"
+        },
+        body: JSON.stringify(input_params)
+      }).then(status).then(json).then(function(ret) {
+        log(request_url + " => " + JSON.stringify(ret,null,"  "));
+        refresh();
+        if (response_handlers.hasOwnProperty(resource_path)) {
+          response_handlers[resource_path](ret);
+        }
+      }).catch(function(error) {
+        log(`POST ${request_url} error: ${error}`);
+      });
     }
-    let challenge = document.getElementById("challenge").value;
-    get_credential_creation_options(challenge);
-    is_signed_in();
-  }
-
-  function main() {
-    is_signed_in();
-    let challenge = new URLSearchParams(document.location.search).get("challenge");
-    if (challenge) {
-      window.history.replaceState(null, null, window.location.pathname);
-      document.getElementById("challenge").value = challenge;
-      document.getElementById("generate-key-from-challenge").focus();
-      document.getElementById("log").innerHTML += "challenge loaded, proceed by clicking [Generate key from challenge]\n";
-    }
-  }
-
-  document.getElementById("sign-up").addEventListener("click", sign_up);
-  document.getElementById("sign-in").addEventListener("click", sign_in);
-  document.getElementById("sign-out").addEventListener("click", sign_out);
-  document.getElementById("add-a-new-key").addEventListener("click", init_credential);
-  document.getElementById("add-a-new-key-other-device").addEventListener("click", add_new_key_other_device);
-  document.getElementById("generate-key-from-challenge").addEventListener("click", generate_key_from_challenge);
-  document.addEventListener('DOMContentLoaded', main);
+  });
 </script>
 </body>
 </html>
