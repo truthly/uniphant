@@ -1,6 +1,6 @@
 # uniphant extension
 comment = 'uniphant'
-default_version = '1.4'
+default_version = '1.5'
 requires = 'webauthn'
 superuser = false
 schema = public
