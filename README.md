@@ -18,6 +18,8 @@
 
 `uniphant` is a full-stack demo project on how to integrate various PostgreSQL-centric components to work nicely together.
 
+For a live demo of the latest released version, check out [https://uniphant.dev](https://uniphant.dev).
+
 <h2 id="dependencies">2. Dependencies</h2>
 
 [🔐🐘webauthn] for the WebAuthn Server.
