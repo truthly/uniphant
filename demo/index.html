@@ -40,7 +40,7 @@ td {
 </style>
 </head>
 <body>
-<div id="/current_user" class="resource pre float-right"></div>
+<div id="/current_user" class="resource"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
 <div id="qr" class="hidden resource-on">
   <div id="close-qr" class="float-right close">&times;</div>
@@ -88,8 +88,9 @@ td {
   //
 
   function log(message) {
-    let o = document.getElementById("log");
-    o.innerHTML = message + "\n" + o.innerHTML;
+    document.getElementById("log").prepend(
+      document.createTextNode(message + "\n")
+    );
   }
 
   function buffer_decode(value) {
@@ -114,28 +115,27 @@ td {
       .replace(/=/g, "");
   }
 
-  function json_to_table(caption,json) {
-    let headerRow = "";
-    let rows = "";
-    if (json.length > 0) {
-      let cols = Object.keys(json[0]);
-      headerRow = cols.map(col => `<th>${col}</th>`).join("");
-      rows = json.map(row => {
-        let tds = cols.map(col => `<td>${row[col]}</td>`).join("");
-        return `<tr>${tds}</tr>`;
-      }).join("");
-    }
-    const table = `
-    <table>
-      <caption>${caption}</caption>
-      <thead>
-        <tr>${headerRow}</tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>`;
-    return table;
+  function json_to_table(resource_element,caption,json_array_of_objects) {
+    let cols = (json_array_of_objects.length > 0) ? Object.keys(json_array_of_objects[0]) : [];
+    let table = document.createElement("table");
+    let thead = document.createElement("thead");
+    let thead_tr = document.createElement("tr");
+    cols.forEach(col => thead_tr.append(document.createElement("th").appendChild(document.createTextNode(col)).parentElement));
+    thead.append(thead_tr);
+    let tbody = document.createElement("tbody");
+    json_array_of_objects.forEach(row => {
+      let tr = document.createElement("tr");
+      cols.forEach(col => tr.append(document.createElement("td").appendChild(document.createTextNode(row[col])).parentElement));
+      tbody.append(tr);
+    });
+    table.append(
+      document.createElement("caption").appendChild(document.createTextNode(caption)).parentElement,
+      thead,
+      tbody
+    );
+    resource_element.append(
+      table
+    );
   }
 
   function copy_to_clipboard(element_id) {
@@ -165,11 +165,18 @@ td {
 
   let response_handlers = {};
 
-  response_handlers["/current_user"] = function (current_user) {
+  response_handlers["/current_user"] = function (resource_element, current_user) {
     if (current_user[0].user_id === 0) {
-      return "";
+      resource_element.classList.remove("resource-on");
     } else {
-      return `✅ signed in as ${current_user[0].username}<br/><small>user_id ${current_user[0].user_id}</small>`;
+      resource_element.classList.add("pre","float-right");
+      resource_element.append(
+        document.createTextNode(`✅ signed in as ${current_user[0].username}`),
+        document.createElement("br"),
+        document.createElement("small").appendChild(
+          document.createTextNode(`user_id ${current_user[0].user_id}`)
+        ).parentElement
+      );
     }
   };
 
@@ -333,7 +340,6 @@ td {
       Object.entries(api_spec.paths).forEach(resource => {
         const [resource_path, resource_methods] = resource;
         if (resource_methods.hasOwnProperty("get")) {
-          console.log(resource_methods);
           let resource_name = resource_methods.get.hasOwnProperty("summary") ? resource_methods.get.summary : resource_path;
           // Views
           fetch(api_url + resource_path, {
@@ -344,19 +350,18 @@ td {
           }).then(status).then(json).then(function(view_data) {
             log(`GET ${resource_path} ok`);
             let target_div = document.getElementById(resource_path);
-            let resource_html = 
-              (typeof response_handlers[resource_path] === "function")
-              ? response_handlers[resource_path](view_data)
-              : json_to_table(resource_name, view_data);
+            let resource_element = document.createElement("div");
+            resource_element.id = resource_path;
+            resource_element.classList.add("resource", "resource-on");
+            if (typeof response_handlers[resource_path] === "function") {
+              response_handlers[resource_path](resource_element, view_data);
+            } else {
+              json_to_table(resource_element, resource_name, view_data);
+            }
             if (target_div == null) {
-              let em = document.getElementById("resources");
-              em.innerHTML = `
-                <div id="${resource_path}" class="resource resource-on">
-                ${resource_html}
-                </div>
-              ` + em.innerHTML;
+              document.getElementById("resources").prepend(resource_element);
             } else if (!target_div.classList.contains("hidden")) {
-              target_div.innerHTML = resource_html;
+              target_div.replaceWith(resource_element);
               if (!target_div.classList.contains("resource-on")) {
                 target_div.classList.add("resource-on");
               }
@@ -365,36 +370,48 @@ td {
         } else if (resource_methods.hasOwnProperty("post")) {
           // Functions
           let target_div = document.getElementById(resource_path);
-          if (target_div == null || target_div.innerHTML === "") {
+          if (target_div == null || target_div.childElementCount === 0) {
             let resource_name = resource_methods.post.hasOwnProperty("summary") ? resource_methods.post.summary : resource_path;
             let schema = resource_methods.post.parameters[0].schema;
-            let required = schema.hasOwnProperty("required") ? schema.required : [];
-            let input_fields_html = "";
+            let required_fields = schema.hasOwnProperty("required") ? schema.required : [];
+            let form_element = document.createElement("div");
             if (schema.hasOwnProperty("properties")) {
               Object.entries(schema.properties).forEach(property => {
                 const [input_parameter_name, input_parameter_type_format] = property;
-                let required_html = required.includes(input_parameter_name) ? " required" : "";
+                let input_field = document.createElement("input");
+                let id = input_parameter_name + resource_path;
+                input_field.id = id;
+                input_field.name = input_parameter_name;
+                input_field.classList.add(resource_path);
                 if (input_parameter_type_format.type === "boolean") {
-                  input_fields_html += `<input id="${resource_path}-${input_parameter_name}" type="checkbox" name="${input_parameter_name}" class="${resource_path}" ${required_html} />\n`;
-                  input_fields_html += `<label for="${resource_path}-${input_parameter_name}">${input_parameter_name}</label>\n`;
+                  input_field.type = "checkbox";
+                  let label = document.createElement("label");
+                  label.htmlFor = id;
+                  label.append(document.createTextNode(input_parameter_name));
+                  form_element.append(label);
                 } else {
-                  input_fields_html += `<input placeholder="${input_parameter_name}" type="text" name="${input_parameter_name}" class="${resource_path}" ${required_html} />\n`;
+                  input_field.placeholder = input_parameter_name;
+                  input_field.type = "text";
+                  if (required_fields.includes(input_parameter_name)) {
+                    input_field.required = true;
+                  }
                 }
+                form_element.append(input_field);
               });
             }
-            let resource_html = `
-                ${input_fields_html}
-                <button data-resource-path="${resource_path}" class="fetch-resource">${resource_name}</button>
-            `;
+            let button = document.createElement("button");
+            button.dataset.resourcePath = resource_path;
+            button.classList.add("fetch-resource");
+            button.append(document.createTextNode(resource_name));
+            form_element.append(button);
+            let resource_element = document.createElement("div");
+            resource_element.id = resource_path;
+            resource_element.classList.add("resource","resource-on");
+            resource_element.append(form_element);
             if (target_div == null) {
-              let em = document.getElementById("resources");
-              em.innerHTML = `
-                <div id="${resource_path}" class="resource">
-                  ${resource_html}
-                </div>
-              ` + em.innerHTML;
+              document.getElementById("resources").prepend(resource_element);
             } else if (!target_div.classList.contains("hidden")) {
-              target_div.innerHTML = resource_html;
+              target_div.replaceWith(resource_element);
               if (!target_div.classList.contains("resource-on")) {
                 target_div.classList.add("resource-on");
               }
