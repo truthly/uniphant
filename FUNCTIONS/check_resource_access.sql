@@ -8,7 +8,8 @@ AS $$
 SELECT EXISTS (
   SELECT 1
   FROM role_memberships
-  JOIN permissions ON permissions.role_id = role_memberships.role_id
+  JOIN permissions
+    ON permissions.role_id = role_memberships.role_id
   WHERE role_memberships.user_id = user_id()
   AND permissions.resource_id = _resource_id
 )
