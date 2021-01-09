@@ -40,7 +40,7 @@ td {
 </style>
 </head>
 <body>
-<div id="/current_user-div" class="pre float-right"></div>
+<div id="/current_user" class="resource pre float-right"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
 <div id="qr" class="hidden resource-on">
   <div id="close-qr" class="float-right close">&times;</div>
@@ -50,30 +50,30 @@ td {
 </div>
 <div id="resources">
   <!-- Signed-in: -->
-  <div id="/rpc/sign_out-div" class="resource"></div>
-  <div id="/rpc/init_credential-div" class="resource"></div>
-  <div id="/user_credentials-div" class="resource"></div>
-  <div id="/credentials-div" class="resource"></div>
-  <div id="/rpc/update_credential_validity-div" class="resource"></div>
-  <div id="/users-div" class="resource"></div>
-  <div id="/rpc/create_user-div" class="resource"></div>
-  <div id="/roles-div" class="resource"></div>
-  <div id="/rpc/create_role-div" class="resource"></div>
-  <div id="/role_memberships-div" class="resource"></div>
-  <div id="/rpc/grant_role_to_user-div" class="resource"></div>
-  <div id="/resources-div" class="resource"></div>
-  <div id="/permissions-div" class="resource"></div>
-  <div id="/rpc/grant_resource_to_role-div" class="resource"></div>
+  <div id="/rpc/sign_out" class="resource"></div>
+  <div id="/rpc/init_credential" class="resource"></div>
+  <div id="/user_credentials" class="resource"></div>
+  <div id="/credentials" class="resource"></div>
+  <div id="/rpc/update_credential_validity" class="resource"></div>
+  <div id="/users" class="resource"></div>
+  <div id="/rpc/create_user" class="resource"></div>
+  <div id="/roles" class="resource"></div>
+  <div id="/rpc/create_role" class="resource"></div>
+  <div id="/role_memberships" class="resource"></div>
+  <div id="/rpc/grant_role_to_user" class="resource"></div>
+  <div id="/resources" class="resource"></div>
+  <div id="/permissions" class="resource"></div>
+  <div id="/rpc/grant_resource_to_role" class="resource"></div>
   <!-- Signed-out: -->
-  <div id="/rpc/sign_up-div" class="resource"></div>
-  <div id="/rpc/get_credential_creation_options-div" class="resource"></div>
-  <div id="/rpc/sign_in-div" class="resource"></div>
-  <div id="/rpc/store_credential-div" class="resource hidden"></div>
-  <div id="/rpc/verify_assertion-div" class="resource hidden"></div>
-  <div id="/rpc/openapi_swagger-div" class="resource hidden"></div>
+  <div id="/rpc/sign_up" class="resource"></div>
+  <div id="/rpc/get_credential_creation_options" class="resource"></div>
+  <div id="/rpc/sign_in" class="resource"></div>
+  <div id="/rpc/store_credential" class="resource hidden"></div>
+  <div id="/rpc/verify_assertion" class="resource hidden"></div>
+  <div id="/rpc/openapi_swagger" class="resource hidden"></div>
   <!-- Signed-in/Signed-out: -->
-  <div id="/user_resources-div" class="resource"></div>
-  <div id="/user_role_memberships-div" class="resource"></div>
+  <div id="/user_resources" class="resource"></div>
+  <div id="/user_role_memberships" class="resource"></div>
 </div>
 <div class="pre" id="log"></div>
 <script type="text/javascript" src="qrcode.min.js"></script>
@@ -323,7 +323,7 @@ td {
     }).then(status).then(json).then(function(api_spec) {
       log(`GET ${openapi_swagger_path} ok`);
       Array.from(document.getElementsByClassName("resource")).forEach((resource_div) => {
-        if (!api_spec.paths.hasOwnProperty(resource_div.id.replace(/-div$/, ""))
+        if (!api_spec.paths.hasOwnProperty(resource_div.id)
         && !resource_div.classList.contains("hidden")
         && resource_div.classList.contains("resource-on")) {
           resource_div.innerHTML = "";
@@ -343,7 +343,7 @@ td {
             }
           }).then(status).then(json).then(function(view_data) {
             log(`GET ${resource_path} ok`);
-            let target_div = document.getElementById(`${resource_path}-div`);
+            let target_div = document.getElementById(resource_path);
             let resource_html = 
               (typeof response_handlers[resource_path] === "function")
               ? response_handlers[resource_path](view_data)
@@ -351,7 +351,7 @@ td {
             if (target_div == null) {
               let em = document.getElementById("resources");
               em.innerHTML = `
-                <div id="${resource_path}-div" class="resource resource-on">
+                <div id="${resource_path}" class="resource resource-on">
                 ${resource_html}
                 </div>
               ` + em.innerHTML;
@@ -364,7 +364,7 @@ td {
           });
         } else if (resource_methods.hasOwnProperty("post")) {
           // Functions
-          let target_div = document.getElementById(`${resource_path}-div`);
+          let target_div = document.getElementById(resource_path);
           if (target_div == null || target_div.innerHTML === "") {
             let resource_name = resource_methods.post.hasOwnProperty("summary") ? resource_methods.post.summary : resource_path;
             let schema = resource_methods.post.parameters[0].schema;
@@ -384,12 +384,12 @@ td {
             }
             let resource_html = `
                 ${input_fields_html}
-                <button id="${resource_path}" class="fetch-resource">${resource_name}</button>
+                <button data-resource-path="${resource_path}" class="fetch-resource">${resource_name}</button>
             `;
             if (target_div == null) {
               let em = document.getElementById("resources");
               em.innerHTML = `
-                <div id="${resource_path}-div" class="resource">
+                <div id="${resource_path}" class="resource">
                   ${resource_html}
                 </div>
               ` + em.innerHTML;
@@ -426,7 +426,7 @@ td {
 
   document.getElementById("resources").addEventListener("click", event => {
     if (event.target.className === "fetch-resource") {
-      let resource_path = event.target.id;
+      let resource_path = event.target.dataset.resourcePath;
       let input_params = {};
       let missing = false;
       Array.from(document.getElementsByClassName(resource_path)).filter(em => em.tagName === "INPUT").forEach((em) => {
