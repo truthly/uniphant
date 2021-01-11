@@ -5,5 +5,5 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path TO public, pg_temp
 AS $$
-SELECT current_setting('uniphant.user_id',FALSE)::bigint
+SELECT NULLIF(current_setting('uniphant.user_id',TRUE),'')::bigint
 $$;

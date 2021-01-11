@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION set_user_id(user_id bigint)
-RETURNS void
+CREATE OR REPLACE FUNCTION set_user_id(user_id bigint, _issue_access_token boolean DEFAULT TRUE)
+RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO public, pg_temp
@@ -10,6 +10,9 @@ IF set_config('uniphant.user_id',user_id::text,TRUE) = user_id::text THEN
 ELSE
   RAISE EXCEPTION 'Bug! set_config() did not return the value';
 END IF;
-RETURN;
+IF _issue_access_token THEN
+  PERFORM issue_access_token();
+END IF;
+RETURN TRUE;
 END
 $$;

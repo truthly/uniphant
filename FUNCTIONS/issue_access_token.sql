@@ -1,11 +1,11 @@
-CREATE OR REPLACE FUNCTION issue_access_token(user_id bigint)
+CREATE OR REPLACE FUNCTION issue_access_token()
 RETURNS boolean
 LANGUAGE sql
 AS $$
 WITH
 new AS (
   INSERT INTO access_tokens (user_id, expire_at)
-  SELECT issue_access_token.user_id, now() + settings.verify_assertion_access_token_cookie_max_age
+  SELECT user_id(), now() + settings.verify_assertion_access_token_cookie_max_age
   FROM settings
   RETURNING access_tokens.access_token, access_tokens.expire_at
 )

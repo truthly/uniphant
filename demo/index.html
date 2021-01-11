@@ -43,10 +43,13 @@ td {
 <div id="/current_user" class="resource"></div>
 <h1 class="pre">🦄🐘uniphant</h1>
 <div id="qr" class="hidden resource-on">
-  <div id="close-qr" class="float-right close">&times;</div>
+  <div class="float-right close">&times;</div>
   <div id="qr-code"></div>
   <code id="challenge-url"></code>
   <button onclick="copy_to_clipboard('challenge-url')" title="Copy to clipboard">📋</button>
+</div>
+<div id="message" class="hidden resource-on">
+  <div class="float-right close">&times;</div>
 </div>
 <div id="resources">
   <!-- Signed-in: -->
@@ -271,7 +274,9 @@ td {
         log("✅ credential created successfully");
         refresh();
       } else if (valid === false) {
-        log("🔜 credential created successfully, but has to be marked as valid by your sysadmin before it can be used to sign-in");
+        let message = document.getElementById("message");
+        message.classList.remove("hidden");
+        message.textContent = "✅ credential created successfully; 🚨 you need to sign-in from your device and mark this new credential as VALID before you can use it to sign-in";
         refresh();
       } else {
         log("Unexpected valid value: " + valid);
@@ -306,8 +311,10 @@ td {
       log("POST /api/rpc/verify_assertion ok");
       if (ret === true) {
         log("✅ signed in");
-      } else {
-        log("❌ sign in failed");
+      } else if (ret === false) {
+        let message = document.getElementById("message");
+        message.classList.remove("hidden");
+        message.textContent = "🚨 credential not yet marked as valid; please sign-in from your device and mark this new credential you tried to sign-in with as VALID";
       }
       refresh();
     }).catch(function (err) {

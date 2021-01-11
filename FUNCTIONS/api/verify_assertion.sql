@@ -13,8 +13,8 @@ SET search_path TO public, pg_temp
 AS $$
 SELECT
   CASE credentials.valid
-  WHEN TRUE
-  THEN issue_access_token(users.user_id)
+  WHEN TRUE THEN set_user_id(users.user_id)
+  WHEN FALSE THEN FALSE
   END
 FROM webauthn.verify_assertion(
   credential_id      := credential_id,
@@ -23,9 +23,9 @@ FROM webauthn.verify_assertion(
   client_data_json   := client_data_json,
   signature          := signature,
   user_handle        := user_handle
-)
+) AS webauthn_verify_assertion
 JOIN users
-  ON users.user_random_id = verify_assertion.user_id
+  ON users.user_random_id = webauthn_verify_assertion.user_id
 JOIN credentials
   ON credentials.credential_bytea_id = webauthn.base64url_decode(verify_assertion.credential_id)
 $$;

@@ -71,7 +71,7 @@ sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
 createdb -E UTF8 uniphant
-createuser api -L -s
+createuser api -L
 createuser web_anon -L
 createuser postgrest -I
 # pg-cbor:

@@ -55,7 +55,11 @@ SQL_SRC = \
 	FUNCTIONS/api/update_credential_validity.sql \
 	FUNCTIONS/api/openapi_swagger.sql \
 	FUNCTIONS/notify_ddl_postgrest.sql \
+	EVENT_TRIGGER/ddl_postgrest.sql \
 	FUNCTIONS/auto_add_new_resources.sql \
+	role-based-access-control.sql \
+	grant.sql \
+	row-level-security.sql \
 	footer.sql
 
 uniphant--1.5.sql: $(SQL_SRC)
@@ -63,8 +67,12 @@ uniphant--1.5.sql: $(SQL_SRC)
 
 SQL_SRC = \
 	header.sql \
-	1.4--1.5-header.sql \
-	1.4--1.5-footer.sql
+	1.4--1.5.sql \
+	FUNCTIONS/set_user_id.sql \
+	FUNCTIONS/issue_access_token.sql \
+	FUNCTIONS/api/verify_assertion.sql \
+	row-level-security.sql \
+	footer.sql
 
 uniphant--1.4--1.5.sql: $(SQL_SRC)
 	cat $^ > $@

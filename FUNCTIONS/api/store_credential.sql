@@ -13,6 +13,7 @@ DECLARE
 _user_random_id bytea;
 _user_id bigint;
 _valid boolean;
+_ok boolean;
 BEGIN
 _user_random_id := webauthn.store_credential(
   credential_id      := credential_id,
@@ -21,41 +22,41 @@ _user_random_id := webauthn.store_credential(
   client_data_json   := client_data_json
 );
 
+SELECT
+  users.user_id
+INTO STRICT
+  _user_id
+FROM users
+WHERE users.user_random_id = _user_random_id;
+
+IF user_id() = _user_id THEN
+  _valid := TRUE;
+ELSIF (SELECT new_credential_valid_without_confirmation FROM settings) THEN
+  PERFORM set_user_id(_user_id);
+  _valid := TRUE;
+ELSE
+  _valid := FALSE;
+END IF;
+
 INSERT INTO credentials
   (credential_bytea_id, device_name, user_id, valid)
 SELECT
   credentials.credential_id,
   credential_challenges.user_display_name,
   users.user_id,
-  CASE
-    WHEN user_id() = users.user_id -- user signed-in already and is the same as the credential's user_id
-    THEN TRUE
-    ELSE settings.new_credential_valid_without_confirmation
-  END
+  _valid
 FROM webauthn.credentials
 JOIN users
   ON users.user_random_id = credentials.user_id
 JOIN webauthn.credential_challenges
   ON credential_challenges.challenge = credentials.challenge
-CROSS JOIN settings
 WHERE credentials.credential_id = webauthn.base64url_decode(store_credential.credential_id)
 AND credentials.user_id = _user_random_id
-RETURNING user_id, valid
-INTO STRICT _user_id, _valid;
+RETURNING TRUE
+INTO STRICT _ok;
 
-IF user_id() IS NOT NULL THEN
-  -- user is already signed-in
-  RETURN TRUE;
-ELSIF _valid THEN
-  -- user not signed-in,
-  -- and newly created credential is immediately valid,
-  -- so issue access token causing the user to be signed-in
-  PERFORM issue_access_token(_user_id);
-  RETURN TRUE;
-END IF;
-
--- tell the user the credential has to be marked as valid
+-- inform the user if the credential has to be marked as valid
 -- before it can be used to sign-in
-RETURN FALSE;
+RETURN _valid;
 END
 $$;

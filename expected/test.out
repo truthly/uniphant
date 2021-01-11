@@ -11,6 +11,7 @@ NOTICE:  installing required extension "webauthn"
 NOTICE:  installing required extension "pguecc"
 NOTICE:  installing required extension "pgcrypto"
 NOTICE:  installing required extension "cbor"
+SET ROLE web_anon;
 SELECT set_config('request.header.origin','http://localhost',FALSE);
     set_config    
 ------------------
@@ -83,11 +84,5 @@ SELECT user_id, username FROM users;
        0 | anonymous
        1 | test
 (2 rows)
-
-SELECT user_id FROM access_tokens;
- user_id 
----------
-       1
-(1 row)
 
 ROLLBACK;

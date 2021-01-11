@@ -10,6 +10,8 @@ BEGIN;
 
 CREATE EXTENSION uniphant CASCADE;
 
+SET ROLE web_anon;
+
 SELECT set_config('request.header.origin','http://localhost',FALSE);
 SELECT effective_domain();
 
@@ -26,6 +28,5 @@ SELECT set_config('request.path','/rpc/sign_up',FALSE);
 SELECT auth();
 SELECT api.sign_up(username := 'test', device_name := 'iPhone') IS NOT NULL;
 SELECT user_id, username FROM users;
-SELECT user_id FROM access_tokens;
 
 ROLLBACK;

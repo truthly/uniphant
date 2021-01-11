@@ -34,8 +34,6 @@ END IF;
 --
 PERFORM set_user_id(_user_id);
 
-PERFORM issue_access_token(_user_id);
-
 RETURN (SELECT credential_creation_options FROM api.init_credential(device_name, FALSE));
 
 END

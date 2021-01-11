@@ -25,7 +25,7 @@ AND (access_tokens.expire_at > now()) IS NOT FALSE;
 IF NOT FOUND THEN
   _user_id := 0; -- anonymous
 END IF;
-PERFORM set_user_id(_user_id);
+PERFORM set_user_id(_user_id, _issue_access_token := FALSE);
 
 --
 -- Authorization
