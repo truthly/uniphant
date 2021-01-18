@@ -68,6 +68,15 @@ sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo apt-get update
 sudo apt-get -y install postgresql postgresql-server-dev-13 build-essential
+# data-checksums is not enabled by default, so let's fix that
+sudo sed -i -E "s/^#initdb_options = ''$/initdb_options = '--data-checksums'/" /etc/postgresql-common/createcluster.conf
+sudo pg_createcluster 13 with_checksums
+sudo systemctl start postgresql@13-with_checksums
+sudo -u postgres pg_dumpall --port=5432 --clean | sudo -u postgres psql --port=5433
+sudo systemctl stop postgresql@13-main
+sudo pg_dropcluster 13 main
+sudo systemctl stop postgresql@13-with_checksums
+sudo sed -i -E "s/^port = 5433/port = 5432/" /etc/postgresql/13/with_checksums/postgresql.conf
 sudo service postgresql start
 sudo -u postgres createuser -s "$USER"
 createdb -E UTF8 uniphant
