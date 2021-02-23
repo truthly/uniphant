@@ -73,8 +73,8 @@ uniphant--1.5.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
-	header.sql \
 	1.4--1.5-header.sql \
+	FUNCTIONS/check_resource_access.sql \
 	1.4--1.5-footer.sql
 
 uniphant--1.4--1.5.sql: $(SQL_SRC)
