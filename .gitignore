@@ -1,5 +1,4 @@
 .DS_Store
-uniphant--*.sql
 regression.diffs
 regression.out
 results

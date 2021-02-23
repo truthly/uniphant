@@ -1,5 +1,16 @@
 EXTENSION = uniphant
-DATA = uniphant--1.5.sql uniphant--1.4--1.5.sql
+DATA = \
+	uniphant--1.0.sql \
+	uniphant--1.0--1.1.sql \
+	uniphant--1.1.sql \
+	uniphant--1.1--1.2.sql \
+	uniphant--1.2.sql \
+	uniphant--1.2--1.3.sql \
+	uniphant--1.3.sql \
+	uniphant--1.3--1.4.sql \
+	uniphant--1.4.sql \
+	uniphant--1.4--1.5.sql \
+	uniphant--1.5.sql
 
 REGRESS = test
 EXTRA_CLEAN = uniphant--1.5.sql uniphant--1.4--1.5.sql
