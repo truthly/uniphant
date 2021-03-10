@@ -1,3 +1,4 @@
+REASSIGN OWNED BY api TO CURRENT_USER;
 CREATE OR REPLACE FUNCTION check_resource_access(_resource_id integer)
 RETURNS boolean
 STABLE
