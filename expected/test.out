@@ -6,7 +6,7 @@ BEGIN;
 -- For a more complete integration test,
 -- see .github/workflows/build-test.yml
 --
-CREATE EXTENSION uniphant CASCADE;
+CREATE EXTENSION uniphant WITH SCHEMA public CASCADE;
 NOTICE:  installing required extension "webauthn"
 NOTICE:  installing required extension "pguecc"
 NOTICE:  installing required extension "pgcrypto"

@@ -1,5 +1,5 @@
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
-\echo Use "CREATE EXTENSION uniphant" to load this file. \quit
+\echo Use "CREATE EXTENSION uniphant WITH SCHEMA public CASCADE" to load this file. \quit
 
 CREATE SCHEMA IF NOT EXISTS api;
 GRANT USAGE ON SCHEMA api TO web_anon;

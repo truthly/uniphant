@@ -8,7 +8,7 @@ BEGIN;
 -- see .github/workflows/build-test.yml
 --
 
-CREATE EXTENSION uniphant CASCADE;
+CREATE EXTENSION uniphant WITH SCHEMA public CASCADE;
 
 SELECT set_config('request.header.origin','http://localhost',FALSE);
 SELECT effective_domain();
