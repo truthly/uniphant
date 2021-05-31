@@ -1,5 +1,5 @@
 #!/bin/sh
-killall -SIGUSR1 postgrest
+sudo killall -SIGUSR1 postgrest
 sleep 1
 JSON=$(curl -s -H 'Content-Type: application/json' 'http://localhost:3000/')
 echo "SELECT set_openapi_swagger(:'json')" | psql -X -v json="$JSON"
