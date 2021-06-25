@@ -144,6 +144,14 @@ To do so, browse to `http://localhost:8080` to test a real sign-up and sign-in.
 
 **Note:** Only works with Chrome and Safari. **Firefox** is currently **not supported** due to a [bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1530370).
 
+<h3 id="certbot">Setting up SSL/TLS using self-signed cert</h3>
+
+This is useful when tesing locally.
+
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -subj "/CN=uniphant" -keyout /etc/ssl/private/self-signed.key -out /etc/ssl/certs/self-signed.crt
+sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 128
+sudo cp self-signed.conf /etc/nginx/snippets/self-signed.conf
+
 <h3 id="certbot">Setting up SSL/TLS using Let's Encrypt/Certbot</h3>
 
 ```sh
