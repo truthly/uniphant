@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION register_resource(
-  resource_type text,
-  resource_name text
+resource_type text,
+resource_name text
 )
 RETURNS integer
 LANGUAGE plpgsql
