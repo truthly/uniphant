@@ -10,16 +10,18 @@ DATA = \
 	uniphant--1.3--1.4.sql \
 	uniphant--1.4.sql \
 	uniphant--1.4--1.5.sql \
-	uniphant--1.5.sql
+	uniphant--1.5.sql \
+	uniphant--1.5--1.6.sql \
+	uniphant--1.6.sql
 
 REGRESS = test
-EXTRA_CLEAN = uniphant--1.5.sql uniphant--1.4--1.5.sql
+EXTRA_CLEAN = uniphant--1.6.sql uniphant--1.5--1.6.sql
 
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
-all: uniphant--1.5.sql uniphant--1.4--1.5.sql
+all: uniphant--1.6.sql uniphant--1.5--1.6.sql
 
 SQL_SRC = \
 	header.sql \
@@ -67,15 +69,22 @@ SQL_SRC = \
 	FUNCTIONS/api/openapi_swagger.sql \
 	FUNCTIONS/notify_ddl_postgrest.sql \
 	FUNCTIONS/auto_add_new_resources.sql \
+	TABLES/hosts.sql \
+	TABLES/worker_types.sql \
+	TABLES/workers.sql \
+	TABLES/processes.sql \
+	FUNCTIONS/register_host.sql \
+	FUNCTIONS/keepalive.sql \
+	FUNCTIONS/disconnect.sql \
+	FUNCTIONS/get_worker_ids.sql \
+	FUNCTIONS/get_or_create_worker_id.sql \
 	footer.sql
 
-uniphant--1.5.sql: $(SQL_SRC)
+uniphant--1.6.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
-	1.4--1.5-header.sql \
-	FUNCTIONS/check_resource_access.sql \
-	1.4--1.5-footer.sql
+	FUNCTIONS/remote_ip.sql
 
-uniphant--1.4--1.5.sql: $(SQL_SRC)
+uniphant--1.5--1.6.sql: $(SQL_SRC)
 	cat $^ > $@

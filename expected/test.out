@@ -35,7 +35,7 @@ SELECT effective_domain();
  example.com
 (1 row)
 
-SELECT set_config('request.header.X-Forwarded-For','127.0.0.1',FALSE);
+SELECT set_config('request.header.X_Forwarded_For','127.0.0.1',FALSE);
  set_config 
 ------------
  127.0.0.1
@@ -47,7 +47,7 @@ SELECT remote_ip();
  127.0.0.1
 (1 row)
 
-SELECT set_config('request.header.X-Forwarded-For','192.168.123.123',FALSE);
+SELECT set_config('request.header.X_Forwarded_For','192.168.123.123',FALSE);
    set_config    
 -----------------
  192.168.123.123

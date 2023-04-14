@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["uniphant"]
+
+[project]
+name = "uniphant"
+version = "0.0.1"
+dependencies = [
+        "psycopg2",
+        "python-daemon",
+        "psutil",
+        "filelock",
+]
