@@ -13,6 +13,9 @@ import psutil
 import uuid
 from filelock import FileLock
 import socket
+import signal
+
+termination_requested = False
 
 def connect_to_database(config):
     params = {"application_name": config["process_id"]}
@@ -52,11 +55,27 @@ def is_valid_uuid(text):
     except ValueError:
         return False
 
-def get_worker_ids(config, connection):
+def ensure_worker_exists_and_get_ids(config, connection):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT get_worker_ids(%s, %s)
+        SELECT ensure_worker_exists_and_get_ids(%s, %s)
     """, (config["host_id"], config["worker_type"]))
+    worker_ids = [result[0] for result in cursor.fetchall()]
+    return worker_ids
+
+def scale_up(config, connection, num_workers):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT scale_up(%s, %s, %s)
+    """, (config["host_id"], config["worker_type"], num_workers))
+    worker_ids = [result[0] for result in cursor.fetchall()]
+    return worker_ids
+
+def scale_down(config, connection, num_workers):
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT scale_down(%s, %s, %s)
+    """, (config["host_id"], config["worker_type"], num_workers))
     worker_ids = [result[0] for result in cursor.fetchall()]
     return worker_ids
 
@@ -89,7 +108,15 @@ def setup_logging(config):
 
     return logger
 
-def alive(config):
+def alive(config, connection):
+    # Die if termination has been requested, via the database
+    if not keepalive(connection):
+        return False
+
+    # Die if termination has been requested, via a signal
+    if termination_requested:
+        return False
+
     # Background processes run forever until stopped
     if not config["foreground"]:
         return True
@@ -100,14 +127,15 @@ def alive(config):
     else:
         return False
 
-def run(config, worker_function, pid_lock):
+def run(config, connection, worker_function, pid_lock):
     with pid_lock:
-        connection = connect_to_database(config)
+        if connection is None:
+            connection = connect_to_database(config)
         logger = setup_logging(config)
         try:
             logger.info("Started")
-            while alive(config):
-                keepalive(config, connection)
+            register_process(config, connection)
+            while alive(config, connection):
                 worker_function(config, logger, connection)
                 time.sleep(1)
 
@@ -118,16 +146,20 @@ def run(config, worker_function, pid_lock):
         finally:
             logger.info("Stopped")
             disconnect(config, connection)
-            if os.path.exists(config["pid_file"]):
-                os.remove(config["pid_file"])
-            os.kill(os.getpid(), signal.SIGTERM)
+    if os.path.exists(config["pid_file"]):
+        os.remove(config["pid_file"])
 
-def start_daemon(config, worker_function, pid_lock):
+def start_daemon(config, connection, worker_function, pid_lock):
+    # Disconnect since daemon will fork and child cannot share database
+    # connection with parent.
+    disconnect(config, connection)
+    connection = None
+
     with daemon.DaemonContext(
         working_directory=config["script_dir"],
         umask=0o002,
     ):
-        run(config, worker_function, pid_lock)
+        run(config, connection, worker_function, pid_lock)
 
 def register_host(config, connection):
     host_id = config["host_id"]
@@ -138,24 +170,33 @@ def register_host(config, connection):
         SELECT register_host(%s,%s)
     """, (host_id, host_name))
 
-def keepalive(config, connection):
+def register_process(config, connection):
     host_id = config["host_id"]
     host_name = config["host_name"]
     worker_id = config["worker_id"]
     worker_type = config["worker_type"]
 
+    connection.cursor().execute("""
+        SELECT register_process(%s,%s,%s,%s)
+    """, (host_id, host_name, worker_id, worker_type))
+
+def keepalive(connection):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT keepalive(%s,%s,%s,%s)
-    """, (host_id, host_name, worker_id, worker_type))
+        SELECT keepalive()
+    """)
+    return cursor.fetchone()[0]
 
 def disconnect(config, connection):
     cursor = connection.cursor()
     cursor.execute("""
         SELECT disconnect()
     """)
-
     connection.close()
+
+def signal_handler(sig, frame):
+    global termination_requested
+    termination_requested = True
 
 def is_pid_alive(pid):
     try:
@@ -223,6 +264,8 @@ def read_config_files(config):
                 config[key] = value
 
 def main(worker_function):
+    signal.signal(signal.SIGTERM, signal_handler)
+
     calling_file_path = (
         inspect.getframeinfo(inspect.currentframe().f_back).filename
     )
@@ -253,15 +296,21 @@ def main(worker_function):
 
     parser = argparse.ArgumentParser(description=worker_type)
 
+    commands = ['start', 'stop', 'restart', 'status', 'list', 'scale-up', 'scale-down']
+
     parser.add_argument('command',
                         nargs='?',
-                        choices=['start', 'stop', 'restart', 'status'],
+                        choices=commands,
                         help='Command to run')
 
-    parser.add_argument('worker_id',
-                        nargs='?',
+    parser.add_argument('-w', '--worker-id',
                         default=None,
                         help='Worker ID')
+
+    parser.add_argument('-n', '--num-workers',
+                        type=int,
+                        default=1,
+                        help='Number of workers to scale up or down')
 
     parser.add_argument('-f', '--foreground',
                         action='store_true',
@@ -282,12 +331,31 @@ def main(worker_function):
 
     register_host(config, connection)
 
+    command = args.command
+
+    if command == 'list':
+        worker_ids = ensure_worker_exists_and_get_ids(config, connection)
+        for worker_id in worker_ids:
+            print(worker_id + " " + worker_type)
+        sys.exit(0)
+
+    elif command == 'scale-up':
+        scale_up(config, connection, args.num_workers)
+        sys.exit(0)
+
+    elif command == 'scale-down':
+        scale_down(config, connection, args.num_workers)
+        sys.exit(0)
+
     # The worker_id is optional in case only one worker should run,
     # in which case the worker_id will be generated, and reused on
     # the next invocation.
     worker_id = args.worker_id
     if worker_id is None:
-        worker_id = get_or_create_worker_id(config, connection)
+        worker_ids = ensure_worker_exists_and_get_ids(config, connection)
+        if len(worker_ids) > 1:
+            raise ValueError("Multiple worker_ids exist. Please specify the worker_id explicitly.")
+        worker_id = worker_ids[0]
     elif not is_valid_uuid(worker_id):
         raise ValueError(f"The specified worker_id {worker_id} is not a valid UUID")
     config["worker_id"] = worker_id
@@ -301,11 +369,8 @@ def main(worker_function):
     config["pid_file"] = os.path.join(config["pid_dir"], f"{worker_id}.pid")
     config["log_file"] = os.path.join(config["log_dir"], f"{worker_id}.log")
 
-
     pid = get_pid_for_running_process(config)
     is_running = pid is not None
-
-    command = args.command
 
     if config["foreground"]:
         config["parent_pid"] = os.getppid()
@@ -316,9 +381,6 @@ def main(worker_function):
     else:
         start_worker = start_daemon
 
-    disconnect(config, connection)
-    connection = None
-
     if command == 'start':
         if is_running:
             print(f"Cannot start worker {worker_type} worker with id {worker_id} since it is already running with PID {pid}.")
@@ -327,7 +389,7 @@ def main(worker_function):
         print(f"Starting worker {worker_type} with ID {worker_id}.")
 
         pid_lock = pidfile.TimeoutPIDLockFile(config["pid_file"])
-        start_worker(config, worker_function, pid_lock)
+        start_worker(config, connection, worker_function, pid_lock)
 
     elif command == 'restart':
         if is_running:
@@ -337,7 +399,7 @@ def main(worker_function):
             print(f"Starting worker {worker_type} with ID {worker_id} (it wasn't running)")
 
         pid_lock = pidfile.TimeoutPIDLockFile(config["pid_file"])
-        start_worker(config, worker_function, pid_lock)
+        start_worker(config, connection, worker_function, pid_lock)
 
     elif command == 'stop':
         if is_running:
@@ -353,6 +415,6 @@ def main(worker_function):
         else:
             print(f"Worker {worker_type} with ID {worker_id} is not running.")
 
-    else:
+    if command not in commands:
         parser.print_usage(sys.stderr)
         sys.exit(2)

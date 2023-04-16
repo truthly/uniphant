@@ -22,7 +22,7 @@ def set_error(connection, id, error):
     """, (id, error))
 
 def search(config, logger, connection):
-    while alive(config):
+    while alive(config, connection):
         id, question = next(connection)
         if id is None:
             return

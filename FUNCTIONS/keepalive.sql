@@ -1,32 +1,31 @@
-CREATE OR REPLACE FUNCTION keepalive
-(
-    host_id UUID,
-    host_name TEXT,
-    worker_id UUID,
-    worker_type TEXT
-)
-RETURNS VOID AS
+CREATE OR REPLACE FUNCTION keepalive()
+RETURNS BOOLEAN AS
 $$
+<<fn>>
 DECLARE
     process_id UUID := current_setting('application_name')::UUID;
+    ok BOOLEAN;
 BEGIN
-    INSERT INTO hosts (id, name)
-    VALUES (host_id, host_name)
-    ON CONFLICT DO NOTHING;
+    IF NOT EXISTS
+    (
+        SELECT 1 FROM processes
+        WHERE processes.id = fn.process_id
+    )
+    THEN
+        --
+        -- Termination requested, killing process.
+        --
+        RETURN FALSE;
+    ELSE
+        --
+        -- Process allowed to live on, update heartbeat.
+        --
+        UPDATE processes SET
+            heartbeat_at = now()
+        WHERE processes.id = fn.process_id
+        RETURNING TRUE INTO STRICT ok;
 
-    INSERT INTO worker_types (worker_type)
-    VALUES (worker_type)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO workers (id, host_id, worker_type)
-    VALUES (worker_id, host_id, worker_type)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO processes (id, worker_id)
-    VALUES (process_id, worker_id)
-    ON CONFLICT (id)
-    DO UPDATE SET heartbeat_at = now();
-
-    RETURN;
+        RETURN TRUE;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;

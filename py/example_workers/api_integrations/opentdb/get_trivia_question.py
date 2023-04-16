@@ -21,7 +21,7 @@ def set_error(connection, id, error):
     """, (id, error))
 
 def get_trivia_question(config, logger, connection):
-    while alive(config):
+    while alive(config, connection):
         id = next(connection)
         if id is None:
             return

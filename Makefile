@@ -74,17 +74,30 @@ SQL_SRC = \
 	TABLES/workers.sql \
 	TABLES/processes.sql \
 	FUNCTIONS/register_host.sql \
+	FUNCTIONS/register_process.sql \
 	FUNCTIONS/keepalive.sql \
 	FUNCTIONS/disconnect.sql \
-	FUNCTIONS/get_worker_ids.sql \
-	FUNCTIONS/get_or_create_worker_id.sql \
+	FUNCTIONS/ensure_worker_exists_and_get_ids.sql \
+	FUNCTIONS/scale_up.sql \
+	FUNCTIONS/scale_down.sql \
 	footer.sql
 
 uniphant--1.6.sql: $(SQL_SRC)
 	cat $^ > $@
 
 SQL_SRC = \
-	FUNCTIONS/remote_ip.sql
+	FUNCTIONS/remote_ip.sql \
+	TABLES/hosts.sql \
+	TABLES/worker_types.sql \
+	TABLES/workers.sql \
+	TABLES/processes.sql \
+	FUNCTIONS/register_host.sql \
+	FUNCTIONS/register_process.sql \
+	FUNCTIONS/keepalive.sql \
+	FUNCTIONS/disconnect.sql \
+	FUNCTIONS/ensure_worker_exists_and_get_ids.sql \
+	FUNCTIONS/scale_up.sql \
+	FUNCTIONS/scale_down.sql
 
 uniphant--1.5--1.6.sql: $(SQL_SRC)
 	cat $^ > $@
