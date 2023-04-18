@@ -196,6 +196,27 @@ def parse_key_value_format(conf_file):
             config_data[key.strip()] = value.strip()
     return config_data
 
+def read_secret_config_files(config):
+    root_dir = config["root_dir"]
+    script_dir = config["script_dir"]
+    user_home = os.path.expanduser("~")
+    secrets_root = os.path.join(user_home, ".uniphant", "secrets")
+    config["secret_dir"] = os.path.join(secrets_root,
+                                        os.path.relpath(script_dir, root_dir))
+    current_dir = script_dir
+    relative_dirs = []
+    while current_dir != root_dir:
+        relative_dirs.append(os.path.relpath(current_dir, root_dir))
+        current_dir = os.path.dirname(current_dir)
+    for rel_dir in relative_dirs:
+        secret_conf_file = os.path.join(secrets_root, rel_dir, 'secrets.conf')
+        if os.path.exists(secret_conf_file):
+            parsed_data = parse_key_value_format(secret_conf_file)
+            for key, value in parsed_data.items():
+                if key in config:
+                    raise ValueError(f"Duplicate config key: {key}")
+                config[key] = value
+
 def read_config_files(config):
     current_dir = config["script_dir"]
     root_dir = config["root_dir"]
@@ -212,6 +233,9 @@ def read_config_files(config):
                 if key in config:
                     raise ValueError(f"Duplicate config key: {key}")
                 config[key] = value
+
+    # Read secret config files
+    read_secret_config_files(config)
 
 def get_calling_file_path():
     frame = inspect.currentframe()
