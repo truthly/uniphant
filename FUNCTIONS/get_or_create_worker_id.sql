@@ -1,22 +1,20 @@
-CREATE OR REPLACE FUNCTION ensure_worker_exists_and_get_ids
+CREATE OR REPLACE FUNCTION get_or_create_worker_id
 (
+    OUT worker_id UUID,
     host_id UUID,
     worker_type TEXT
 )
-RETURNS SETOF UUID
+RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO public, pg_temp
 AS $$
-<<fn>>
-DECLARE
-    worker_id UUID;
 BEGIN
     --
     -- Acquire a lock on the hosts table to prevent race conditions.
     --
     PERFORM 1 FROM hosts
-    WHERE hosts.id = ensure_worker_exists_and_get_ids.host_id
+    WHERE hosts.id = get_or_create_worker_id.host_id
     FOR UPDATE;
 
     --
@@ -27,8 +25,8 @@ BEGIN
     (
         SELECT 1
         FROM workers
-        WHERE workers.host_id = ensure_worker_exists_and_get_ids.host_id
-        AND workers.worker_type = ensure_worker_exists_and_get_ids.worker_type
+        WHERE workers.host_id = get_or_create_worker_id.host_id
+        AND workers.worker_type = get_or_create_worker_id.worker_type
     )
     THEN
         INSERT INTO worker_types
@@ -43,15 +41,14 @@ BEGIN
             (host_id, worker_type);
     END IF;
 
-    --
-    -- Return the worker_ids of existing workers
-    -- for the given host_id and worker_type.
-    --
-    RETURN QUERY
     SELECT
         workers.id
+    INTO STRICT
+        worker_id
     FROM workers
-    WHERE workers.host_id = ensure_worker_exists_and_get_ids.host_id
-    AND workers.worker_type = ensure_worker_exists_and_get_ids.worker_type;
+    WHERE workers.host_id = get_or_create_worker_id.host_id
+    AND workers.worker_type = get_or_create_worker_id.worker_type;
+
+    RETURN;
 END
 $$;

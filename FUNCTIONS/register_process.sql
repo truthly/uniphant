@@ -1,33 +1,26 @@
 CREATE OR REPLACE FUNCTION register_process
 (
-    host_id UUID,
-    host_name TEXT,
-    worker_id UUID,
-    worker_type TEXT
+    worker_id UUID
 )
 RETURNS VOID AS
 $$
+<<fn>>
 DECLARE
     process_id UUID := current_setting('application_name')::UUID;
+    ok BOOLEAN;
 BEGIN
-    INSERT INTO hosts (id, name)
-    VALUES (host_id, host_name)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO worker_types (worker_type)
-    VALUES (worker_type)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO workers (id, host_id, worker_type)
-    VALUES (worker_id, host_id, worker_type)
-    ON CONFLICT DO NOTHING;
-
-    DELETE FROM processes
-    WHERE processes.worker_id = register_process.worker_id;
+    IF EXISTS
+    (
+        SELECT 1 FROM processes
+        WHERE processes.id = fn.process_id
+        AND processes.worker_id = register_process.worker_id
+    ) THEN
+        RETURN;
+    END IF;
 
     INSERT INTO processes (id, worker_id)
     VALUES (process_id, worker_id)
-    ON CONFLICT DO NOTHING;
+    RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;

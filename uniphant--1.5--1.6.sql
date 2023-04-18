@@ -45,7 +45,8 @@ CREATE TABLE processes
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id),
-    FOREIGN KEY (worker_id) REFERENCES workers
+    FOREIGN KEY (worker_id) REFERENCES workers,
+    UNIQUE (worker_id)
 );
 CREATE OR REPLACE FUNCTION register_host
 (
@@ -64,34 +65,27 @@ END;
 $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION register_process
 (
-    host_id UUID,
-    host_name TEXT,
-    worker_id UUID,
-    worker_type TEXT
+    worker_id UUID
 )
 RETURNS VOID AS
 $$
+<<fn>>
 DECLARE
     process_id UUID := current_setting('application_name')::UUID;
+    ok BOOLEAN;
 BEGIN
-    INSERT INTO hosts (id, name)
-    VALUES (host_id, host_name)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO worker_types (worker_type)
-    VALUES (worker_type)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO workers (id, host_id, worker_type)
-    VALUES (worker_id, host_id, worker_type)
-    ON CONFLICT DO NOTHING;
-
-    DELETE FROM processes
-    WHERE processes.worker_id = register_process.worker_id;
+    IF EXISTS
+    (
+        SELECT 1 FROM processes
+        WHERE processes.id = fn.process_id
+        AND processes.worker_id = register_process.worker_id
+    ) THEN
+        RETURN;
+    END IF;
 
     INSERT INTO processes (id, worker_id)
     VALUES (process_id, worker_id)
-    ON CONFLICT DO NOTHING;
+    RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;
@@ -138,25 +132,23 @@ BEGIN
     RETURN;
 END;
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION ensure_worker_exists_and_get_ids
+CREATE OR REPLACE FUNCTION get_or_create_worker_id
 (
+    OUT worker_id UUID,
     host_id UUID,
     worker_type TEXT
 )
-RETURNS SETOF UUID
+RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO public, pg_temp
 AS $$
-<<fn>>
-DECLARE
-    worker_id UUID;
 BEGIN
     --
     -- Acquire a lock on the hosts table to prevent race conditions.
     --
     PERFORM 1 FROM hosts
-    WHERE hosts.id = ensure_worker_exists_and_get_ids.host_id
+    WHERE hosts.id = get_or_create_worker_id.host_id
     FOR UPDATE;
 
     --
@@ -167,8 +159,8 @@ BEGIN
     (
         SELECT 1
         FROM workers
-        WHERE workers.host_id = ensure_worker_exists_and_get_ids.host_id
-        AND workers.worker_type = ensure_worker_exists_and_get_ids.worker_type
+        WHERE workers.host_id = get_or_create_worker_id.host_id
+        AND workers.worker_type = get_or_create_worker_id.worker_type
     )
     THEN
         INSERT INTO worker_types
@@ -183,16 +175,15 @@ BEGIN
             (host_id, worker_type);
     END IF;
 
-    --
-    -- Return the worker_ids of existing workers
-    -- for the given host_id and worker_type.
-    --
-    RETURN QUERY
     SELECT
         workers.id
+    INTO STRICT
+        worker_id
     FROM workers
-    WHERE workers.host_id = ensure_worker_exists_and_get_ids.host_id
-    AND workers.worker_type = ensure_worker_exists_and_get_ids.worker_type;
+    WHERE workers.host_id = get_or_create_worker_id.host_id
+    AND workers.worker_type = get_or_create_worker_id.worker_type;
+
+    RETURN;
 END
 $$;
 CREATE OR REPLACE FUNCTION scale_up

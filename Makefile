@@ -77,7 +77,7 @@ SQL_SRC = \
 	FUNCTIONS/register_process.sql \
 	FUNCTIONS/keepalive.sql \
 	FUNCTIONS/disconnect.sql \
-	FUNCTIONS/ensure_worker_exists_and_get_ids.sql \
+	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql \
 	footer.sql
@@ -95,7 +95,7 @@ SQL_SRC = \
 	FUNCTIONS/register_process.sql \
 	FUNCTIONS/keepalive.sql \
 	FUNCTIONS/disconnect.sql \
-	FUNCTIONS/ensure_worker_exists_and_get_ids.sql \
+	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql
 

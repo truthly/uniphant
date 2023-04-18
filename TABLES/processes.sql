@@ -5,5 +5,6 @@ CREATE TABLE processes
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id),
-    FOREIGN KEY (worker_id) REFERENCES workers
+    FOREIGN KEY (worker_id) REFERENCES workers,
+    UNIQUE (worker_id)
 );
