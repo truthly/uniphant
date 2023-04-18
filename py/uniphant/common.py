@@ -16,6 +16,7 @@ from filelock import FileLock
 import socket
 import signal
 
+# Flag to indicate if a termination request has been received
 termination_requested = False
 
 def connect_to_database(config):
@@ -74,16 +75,20 @@ def setup_logging(config):
         logger.addHandler(sh)
     return logger
 
+# Check if the process should continue running
 def alive(config, connection):
     # Die if termination has been requested, via the database
     if not keepalive(connection):
         return False
+
     # Die if termination has been requested, via a signal
     if termination_requested:
         return False
+
     # Background processes run forever until stopped
     if not config["foreground"]:
         return True
+
     # Foreground processes run until parent process dies
     if is_parent_alive(config["parent_pid"]):
         return True
@@ -221,13 +226,23 @@ def get_script_details():
     script_path = get_calling_file_path()
     script_dir = os.path.dirname(script_path)
     path_components = script_path.split(os.path.sep)
-    if "api_integrations" not in path_components:
-        raise ValueError("The worker script must reside under 'api_integrations'")
-    api_integrations_index = path_components.index("api_integrations")
-    root_dir = os.path.join(os.path.sep, *path_components[:api_integrations_index])
-    worker_type_components = path_components[api_integrations_index + 1:]
+    workers_count = path_components.count("workers")
+    if workers_count == 0:
+        raise ValueError("The worker script must reside under 'workers'")
+    elif workers_count > 1:
+        raise ValueError("There should be only one 'workers' in the path")
+    workers_index = path_components.index("workers")
+    root_dir = os.path.join(os.path.sep, *path_components[:workers_index])
+    worker_type_components = path_components[workers_index + 1:]
     worker_type = ".".join(worker_type_components).rstrip(".py")
     return root_dir, script_dir, worker_type
+
+def get_pid_file_path(config):
+    pid_dir = os.path.join(config["root_dir"], "pid", config["worker_type"])
+    if not os.path.exists(pid_dir):
+        os.makedirs(pid_dir)
+    pid_file = os.path.join(pid_dir, config["worker_id"] + ".pid")
+    return pid_file
 
 def setup_config():
     root_dir, script_dir, worker_type = get_script_details()
@@ -244,7 +259,7 @@ def setup_config():
         "process_id": str(uuid.uuid4()),
         "host_name": socket.gethostname(),
         # Reserve config keys to be assigned in main(), preventing accidental
-        # overrides if used in config files, ensuring error is raised.
+        # overrides if used in config files, ensuring error is raised:
         "foreground": None,
         "worker_id": None,
         "parent_pid": None
@@ -253,9 +268,14 @@ def setup_config():
     return config
 
 def main(worker_function):
+    # Setup signal handler
     signal.signal(signal.SIGTERM, signal_handler)
+
+    # Setup config
     config = setup_config()
     worker_type = config["worker_type"]
+
+    # Parse arguments
     parser = argparse.ArgumentParser(description=worker_type)
     parser.add_argument('worker_id',
                         help='Worker ID')
@@ -268,34 +288,45 @@ def main(worker_function):
                         default=config["foreground"],
                         help='Run in the foreground')
     args = parser.parse_args()
-    os.umask(0o002)
-    config["foreground"] = args.foreground
-    connection = connect_to_database(config)
-    register_host(config, connection)
+
+    # Extract parsed arguments
     command = args.command[0]
+
     worker_id = args.worker_id
     if not is_valid_uuid(worker_id):
         print(f"The specified worker_id {worker_id} is not a valid UUID")
         parser.print_usage(sys.stderr)
         sys.exit(2)
     config["worker_id"] = worker_id
-    pid_dir = os.path.join(config["root_dir"], "pid", worker_type)
-    if not os.path.exists(pid_dir):
-        os.makedirs(pid_dir)
-    pid_file = os.path.join(pid_dir, worker_id + ".pid")
-    pid = get_pid_for_running_process(pid_file)
-    is_running = pid is not None
-    if config["foreground"]:
+
+    if args.foreground:
+        config["foreground"] = True
         config["parent_pid"] = os.getppid()
         start_worker = run
+        os.umask(0o002)
     else:
+        config["foreground"] = False
         start_worker = start_daemon
+
+    # Connect to database
+    connection = connect_to_database(config)
+
+    # Register host
+    register_host(config, connection)
+
+    # PID file
+    pid_file = get_pid_file_path(config)
+    pid = get_pid_for_running_process(pid_file)
+    is_running = pid is not None
+
+    # Handle command
     if command == 'start':
         if is_running:
             print(f"Cannot start worker {worker_type} worker with id {worker_id} since it is already running with PID {pid}.")
             sys.exit(1)
         print(f"Starting worker {worker_type} with ID {worker_id}.")
         start_worker(config, connection, worker_function, pid_file)
+
     elif command == 'restart':
         if is_running:
             print(f"Restarting worker {worker_type} with ID {worker_id} and old PID {pid}.")
@@ -303,6 +334,7 @@ def main(worker_function):
         else:
             print(f"Starting worker {worker_type} with ID {worker_id} (it wasn't running)")
         start_worker(config, connection, worker_function, pid_file)
+
     elif command == 'stop':
         if is_running:
             print(f"Stopping worker {worker_type} with ID {worker_id} and PID {pid}.")
@@ -310,11 +342,13 @@ def main(worker_function):
         else:
             print(f"Cannot stop worker {worker_type} with ID {worker_id} since it is not running.")
             sys.exit(1)
+
     elif command == 'status':
         if is_running:
             print(f"Worker {worker_type} with ID {worker_id} is running with PID {pid}.")
         else:
             print(f"Worker {worker_type} with ID {worker_id} is not running.")
+
     else:
         parser.print_usage(sys.stderr)
         sys.exit(2)
