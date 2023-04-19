@@ -21,14 +21,14 @@ def set_error(connection, id, error):
         SELECT wikipedia.search_set_error(%s, %s)
     """, (id, error))
 
-def search(config, logger, connection):
-    while alive(config, connection):
-        id, question = next(connection)
+def search(self):
+    while self.alive():
+        id, question = next(self.connection)
         if id is None:
             return
 
         try:
-            logger.info(f'Getting Answer for {id}')
+            self.logger.info(f'Getting Answer for {id}')
 
             url = 'https://en.wikipedia.org/w/api.php'
             params = {
@@ -44,15 +44,15 @@ def search(config, logger, connection):
             response = requests.get(url, params=params)
             response.raise_for_status()
 
-            set_response(connection, id, response.json())
+            set_response(self.connection, id, response.json())
 
-            logger.info(f'Got Answer for {id}')
+            self.logger.info(f'Got Answer for {id}')
 
         except Exception as e:
             tb = traceback.format_exc()
             error = f'{e}\n{tb}'
-            logger.error(error)
-            set_error(connection, id, error)
+            self.logger.error(error)
+            set_error(self.connection, id, error)
 
 if __name__ == "__main__":
-    main(search)
+    Worker(search)
