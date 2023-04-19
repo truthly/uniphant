@@ -35,7 +35,6 @@ In summary, this manual aims to equip you with the necessary knowledge and under
       - [keepalive()](#keepalive)
       - [disconnect()](#disconnect)
 
-
 ## 1. Overview
 
 The Uniphant system consists of the following components:
@@ -187,14 +186,29 @@ The Uniphant system should have a robust logging mechanism. It should allow sett
 
 ## 8. Main Function
 
-The main function of the implementation should:
+`main()` is the entry point of the Uniphant worker script. It sets up the signal handler, configuration, and command line argument parsing. The function takes a worker_function as an argument, which is the function that will be executed as the worker task.
 
-1. Set up the signal handler for termination signals.
-2. Set up the configuration by reading and merging the key-value configuration files.
-3. Parse command-line arguments, such as worker_id and command (start, restart, stop, or status).
-4. Connect to the database and register the host.
-5. Handle the command (start, restart, stop, or status) based on the provided command-line arguments.
-6. If starting or restarting a process, start the worker function either in the foreground or as a daemon, depending on the configuration.
+Function `main(worker_function)`
+1. Set up signal handler for process termination requests
+2. Set up configuration by reading config files and extracting script details
+3. Parse command line arguments
+   - Required arguments: `worker_id`, command (`start`, `restart`, `stop`, `status`)
+   - Optional arguments: foreground flag (`-f` or `--foreground`)
+4. Validate `worker_id` (it should be a valid UUID)
+5. Connect to the database and register the host
+6. Create or locate the `pid_file` for the worker
+7. Handle the received command
+   - If command is `start`
+      - Check if the worker is already running
+      - If not running, start the worker (either in foreground or background, based on the flag)
+   - If command is `restart`
+      - If the worker is running, stop it
+      - Start the worker (either in foreground or background, based on the flag)
+   - If command is `stop`
+      - If the worker is running, stop it
+   - If command is `status`
+      - Print the current running status of the worker (running or not running)
+   - If no valid command is provided, print usage and exit
 
 ## 9. Worker Function
 
