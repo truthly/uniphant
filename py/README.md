@@ -113,30 +113,17 @@ key3=value3
 
 The configuration dictionary is a data structure that stores the parsed configuration data. It is used throughout the system to provide access to configuration settings. The initial configuration dictionary should contain the following keys:
 
-| Key           | Description                                               |
-|---------------|-----------------------------------------------------------|
-| `root_dir`    | Absolute path of the directory containing the "workers"   |
-|               | folder. Derived by traversing up from the calling script  |
-|               | until the "workers" folder is found.                      |
-| `script_dir`  | Absolute path of the directory containing the calling     |
-|               | script. Determined using the script's file path.          |
-| `worker_type` | Path components from "workers" folder to the calling      |
-|               | script, joined using dots and the file extension removed. |
-| `lock_file`   | Path to the lock file, formed by joining root_dir with    |
-|               | ".lock".                                                  |
-| `host_id_file`| Path to the host ID file, formed by joining root_dir with |
-|               | ".host_id".                                               |
-| `host_id`     | Unique UUID for the host. Read from host_id_file or       |
-|               | generated and saved to host_id_file if not existing.      |
-| `process_id`  | Randomly generated unique UUID for the current process.   |
-| `host_name`   | Hostname of the machine where the worker is running.      |
-| `foreground`  | Boolean value determining if the worker runs in the       |
-|               | foreground or as a daemon. Set using a command line flag  |
-|               | (--foreground or -f).                                     |
-| `worker_id`   | Unique worker ID provided as a command line argument,     |
-|               | must be a valid UUID.                                     |
-| `parent_pid`  | Process ID of the parent process if running in the        |
-|               | foreground, determined using operating system functions.  |
+- **root_dir**: Absolute path of the directory containing the **workers** folder. Derived by traversing up from the calling script until the **workers** folder is found.
+- **script_dir**: Absolute path of the directory containing the calling script. Determined using the script's file path.
+- **worker_type**: Path components from **workers** folder to the calling script, joined using dots and the file extension removed.
+- **lock_file**: Path to the lock file, formed by joining root_dir with **.lock**.
+- **host_id_file**: Path to the host ID file, formed by joining root_dir with **.host_id**.
+- **host_id**: Unique UUID for the host. Read from **host_id_file** or generated and saved to **host_id_file** if not existing.
+- **process_id**: Randomly generated unique UUID for the current process.
+- **host_name**: Hostname of the machine where the worker is running.
+- **foreground**: Boolean value determining if the worker runs in the foreground or as a daemon. Set using a command line flag (**--foreground** or **-f**).
+- **worker_id**: Unique worker ID provided as a command line argument, must be a valid UUID.
+- **parent_pid**: Process ID of the parent process if running in the foreground, determined using operating system functions.
 
 These initial configuration keys are reserved and cannot be used in any config
 files. If they are found, an error will be raised, preventing their use.
