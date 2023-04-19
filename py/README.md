@@ -121,7 +121,7 @@ The configuration dictionary is a data structure that stores the parsed configur
 | `script_dir`  | Absolute path of the directory containing the calling     |
 |               | script. Determined using the script's file path.          |
 | `worker_type` | Path components from "workers" folder to the calling      |
-|               | script, joined using dots, and with .py extension removed.|
+|               | script, joined using dots and the file extension removed. |
 | `lock_file`   | Path to the lock file, formed by joining root_dir with    |
 |               | ".lock".                                                  |
 | `host_id_file`| Path to the host ID file, formed by joining root_dir with |
