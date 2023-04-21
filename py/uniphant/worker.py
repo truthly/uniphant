@@ -8,13 +8,12 @@ import os
 import argparse
 import sys
 import signal
-import uuid
-import signal
 from .init_worker import init_worker
 from .setup_logging import setup_logging
 from .read_config_files import read_config_files
 from .database_functions import connect_to_database, disconnect_from_database, keepalive, register_process, register_host
-from .utils import is_pid_alive, is_valid_uuid, get_pid_for_running_process, stop_running_process
+from .utils import is_pid_alive, get_pid_for_running_process, stop_running_process
+from .parse_arguments import parse_arguments
 
 # Flag to indicate if a termination request has been received
 termination_requested = False
@@ -79,29 +78,7 @@ def worker(worker_function):
     # Set umask to 0o077 to restrict access to the owner (current user) only
     os.umask(0o077)
 
-    # Parse arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('worker_id',
-                        help='Worker ID')
-    parser.add_argument('command',
-                        nargs=1,
-                        choices=["start", "restart", "stop", "status"],
-                        help='Command to run')
-    parser.add_argument('-f', '--foreground',
-                        action='store_true',
-                        default=False,
-                        help='Run in the foreground')
-    args = parser.parse_args()
-
-    # Extract parsed arguments
-    command = args.command[0]
-    worker_id = args.worker_id
-    foreground = args.foreground
-
-    if not is_valid_uuid(worker_id):
-        print(f"The specified worker_id {worker_id} is not a valid UUID")
-        parser.print_usage(sys.stderr)
-        sys.exit(2)
+    command, worker_id, foreground = parse_arguments()
 
     if foreground:
         start_worker = run
@@ -113,9 +90,6 @@ def worker(worker_function):
 
     # Setup config
     config = read_config_files(state)
-
-    # Set parser description to worker type
-    parser.description = state.worker_type
 
     # Connect to database
     connection = connect_to_database(state.process_id)
@@ -158,5 +132,4 @@ def worker(worker_function):
             print(f"Worker {state.worker_type} with ID {worker_id} is not running.")
 
     else:
-        parser.print_usage(sys.stderr)
-        sys.exit(2)
+        raise ValueError("Invalid command. Should have been caught by the argument parser!")
