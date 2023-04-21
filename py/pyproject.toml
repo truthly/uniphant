@@ -12,4 +12,5 @@ dependencies = [
         "psycopg2",
         "python-daemon",
         "filelock",
+        "lockfile"
 ]

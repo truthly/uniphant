@@ -29,7 +29,7 @@ def search(connection, config, state, logger):
             return
 
         try:
-            self.logger.info(f'Getting Answer for {id}')
+            logger.info(f'Getting Answer for {id}')
 
             url = 'https://en.wikipedia.org/w/api.php'
             params = {
@@ -45,15 +45,15 @@ def search(connection, config, state, logger):
             response = requests.get(url, params=params)
             response.raise_for_status()
 
-            set_response(self.connection, id, response.json())
+            set_response(connection, id, response.json())
 
-            self.logger.info(f'Got Answer for {id}')
+            logger.info(f'Got Answer for {id}')
 
         except Exception as e:
             tb = traceback.format_exc()
             error = f'{e}\n{tb}'
-            self.logger.error(error)
-            set_error(self.connection, id, error)
+            logger.error(error)
+            set_error(connection, id, error)
 
 if __name__ == "__main__":
     worker(search)

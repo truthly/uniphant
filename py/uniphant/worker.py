@@ -2,7 +2,6 @@ import psycopg2
 import daemon
 from daemon import pidfile
 from lockfile import LockTimeout
-import logging
 import traceback
 import time
 import os
@@ -12,46 +11,17 @@ import signal
 import uuid
 import signal
 from .init_worker import init_worker
+from .setup_logging import setup_logging
 from .read_config_files import read_config_files
+from .database_functions import connect_to_database, disconnect_from_database, keepalive, register_process, register_host
+from .utils import is_pid_alive, is_valid_uuid, get_pid_for_running_process, stop_running_process
 
 # Flag to indicate if a termination request has been received
 termination_requested = False
 
-def connect_to_database(process_id):
-    params = {"application_name": process_id}
-    connection = psycopg2.connect(**params)
-    connection.autocommit = True
-    return connection
-
-def is_valid_uuid(text):
-    try:
-        uuid.UUID(text)
-        return True
-    except ValueError:
-        return False
-
-def setup_logging(state):
-    log_dir = os.path.join(state.root_dir, "log", state.worker_type)
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    log_file = os.path.join(log_dir, state.worker_id + ".log")
-    logger_name = state.worker_id + " " + state.worker_type
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
-    # File handler
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.INFO)
-    formatstr = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    formatter = logging.Formatter(formatstr)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-    # Stream handler
-    if state.foreground:
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.INFO)
-        sh.setFormatter(formatter)
-        logger.addHandler(sh)
-    return logger
+def signal_handler(sig, frame):
+    global termination_requested
+    termination_requested = True
 
 # Check if the process should continue running
 def alive(connection, foreground):
@@ -71,7 +41,7 @@ def alive(connection, foreground):
     if is_pid_alive(os.getppid()):
         return True
     else:
-        return False
+        return False 
 
 def run(worker_function, connection, config, state):
     if connection is None:
@@ -92,69 +62,15 @@ def run(worker_function, connection, config, state):
         logger.error(error)
     finally:
         logger.info("Stopped")
-        disconnect(connection)
+        disconnect_from_database(connection)
 
 def start_daemon(worker_function, connection, config, state):
     # Disconnect since daemon will fork and child cannot share database
     # connection with parent.
-    disconnect(connection)
+    disconnect_from_database(connection)
     connection = None
-    with daemon.DaemonContext(working_directory=state.script_dir):
+    with daemon.DaemonContext(working_directory=str(state.script_dir)):
         run(worker_function, connection, config, state)
-
-def register_host(connection, host_id, host_name):
-    connection.cursor().execute("""
-        SELECT register_host(%s,%s)
-    """, (host_id, host_name))
-
-def register_process(connection, worker_id):
-    connection.cursor().execute("""
-        SELECT register_process(%s)
-    """, (worker_id,))
-
-def keepalive(connection):
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT keepalive()
-    """)
-    return cursor.fetchone()[0]
-
-def disconnect(connection):
-    connection.cursor().execute("""
-        SELECT disconnect()
-    """)
-    connection.close()
-
-def signal_handler(sig, frame):
-    global termination_requested
-    termination_requested = True
-
-def is_pid_alive(pid):
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
-
-def get_pid_for_running_process(pid_file):
-    if not os.path.exists(pid_file):
-        return None
-    else:
-        with open(pid_file) as f:
-            pid = int(f.read())
-            if is_pid_alive(pid):
-                return pid
-            else:
-                os.remove(pid_file)
-                return None
-
-def stop_running_process(pid_file):
-    pid = get_pid_for_running_process(pid_file)
-    os.kill(pid, signal.SIGTERM)
-    time.sleep(0.2)
-    while get_pid_for_running_process(pid_file) is not None:
-        print(f"Waiting for pid {pid} to die.")
-        time.sleep(1)
 
 def worker(worker_function):
     # Setup signal handler
