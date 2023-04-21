@@ -4,7 +4,6 @@ import socket
 from filelock import FileLock
 import inspect
 from .worker_state import WorkerState
-from typing import Optional
 
 def init_worker(worker_id: str, foreground: bool) -> WorkerState:
     root_dir, script_dir, worker_type = get_script_details()
