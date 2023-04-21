@@ -21,12 +21,11 @@ In summary, this manual aims to equip you with the necessary knowledge and under
   - [4. Configuration Management](#4-configuration-management)
     - [4.1. Reading Configuration Files](#41-reading-configuration-files)
     - [4.2. Configuration File Format](#42-configuration-file-format)
-    - [4.3. Configuration Dictionary](#43-configuration-dictionary)
-    - [4.4. Function to Configuration Key Mapping](#44-function-to-configuration-key-mapping)
+    - [4.3. WorkerState](#43-workerstate)
   - [5. Signal Handling](#5-signal-handling)
   - [6. Process Management](#6-process-management)
   - [7. Logging](#7-logging)
-  - [8. Main Function](#8-main-function)
+  - [8. Worker](#8-worker)
   - [9. Worker Function](#9-worker-function)
   - [10. Database Connection Management](#10-database-connection-management)
     - [10.1. Database API Functions for Host and Process Management](#101-database-api-functions-for-host-and-process-management)
@@ -83,7 +82,7 @@ The following core functions must be implemented:
    - `get_script_details()`: Returns the root directory, script directory, and worker type of the calling script.
    - `get_pid_file_path(config)`: Returns the PID file path based on the given configuration.
    - `setup_config()`: Sets up the initial configuration.
-   - `main(worker_function)`: The main function that handles command line arguments and starts the appropriate process.
+   - `worker(worker_function)`: The worker function that handles command line arguments and starts the appropriate process.
 
 ## 4. Configuration Management
 
@@ -109,55 +108,40 @@ key2=value2
 key3=value3
 ```
 
-### 4.3. Configuration Dictionary
+### 4.3. WorkerState
 
-The configuration dictionary is a data structure that stores the parsed configuration data. It is used throughout the system to provide access to configuration settings. The initial configuration dictionary should contain the following keys:
+The WorkerState is a struct that stores various pieces of information about the worker, such as directory paths,
+worker type, identifiers, and other related information. It is created initially when a worker is created.
 
-- **root_dir**: Absolute path of the directory containing the **workers** folder. Derived by traversing up from the calling script until the **workers** folder is found.
-- **script_dir**: Absolute path of the directory containing the calling script. Determined using the script's file path.
-- **worker_type**: Path components from **workers** folder to the calling script, joined using dots and the file extension removed.
-- **lock_file**: Path to the lock file, formed by joining root_dir with **.lock**.
-- **host_id_file**: Path to the host ID file, formed by joining root_dir with **.host_id**.
-- **host_id**: Unique UUID for the host. Read from **host_id_file** or generated and saved to **host_id_file** if not existing.
-- **process_id**: Randomly generated unique UUID for the current process.
-- **host_name**: Hostname of the machine where the worker is running.
-- **foreground**: Boolean value determining if the worker runs in the foreground or as a daemon. Set using a command line flag (**--foreground** or **-f**).
-- **worker_id**: Unique worker ID provided as a command line argument, must be a valid UUID.
-- **parent_pid**: Process ID of the parent process if running in the foreground, determined using operating system functions.
-
-These initial configuration keys are reserved and cannot be used in any config
-files. If they are found, an error will be raised, preventing their use.
-
-### 4.4. Function to Configuration Key Mapping
-
-| Function                        | Configuration Keys Used                  |
-|---------------------------------|------------------------------------------|
-| `connect_to_database()`         | process_id                               |
-| `is_parent_alive()`             |                                          |
-| `get_or_create_host_id()`       | lock_file, host_id_file                  |
-| `is_valid_uuid()`               |                                          |
-| `setup_logging()`               | root_dir, worker_type, worker_id,        |
-|                                 | foreground                               |
-| `alive()`                       | foreground, parent_pid                   |
-| `run()`                         |                                          |
-| `start_daemon()`                | script_dir                               |
-| `register_host()`               | host_id, host_name                       |
-| `register_process()`            | worker_id                                |
-| `keepalive()`                   |                                          |
-| `disconnect()`                  |                                          |
-| `signal_handler()`              |                                          |
-| `is_pid_alive()`                |                                          |
-| `get_pid_for_running_process()` |                                          |
-| `stop_running_process()`        |                                          |
-| `parse_key_value_format()`      |                                          |
-| `read_secret_config_files()`    | root_dir, script_dir                     |
-| `read_config_files()`           | script_dir, root_dir                     |
-| `get_calling_file_path()`       |                                          |
-| `get_script_details()`          |                                          |
-| `get_pid_file_path()`           | root_dir, worker_type, worker_id         |
-| `setup_config()`                | **all**                                  |
-| `main()`                        | worker_type, worker_id, foreground,      |
-|                                 | parent_pid                               |
+| Key           | Description                                               |
+|---------------|-----------------------------------------------------------|
+| `root_dir`    | Absolute path of the directory containing the "workers"   |
+|               | folder. Derived by traversing up from the calling script  |
+|               | until the "workers" folder is found.                      |
+| `script_dir`  | Absolute path of the directory containing the calling     |
+|               | script. Determined using the script's file path.          |
+| `worker_type` | Path components from "workers" folder to the calling      |
+|               | script, joined using dots and the file extension removed. |
+| `lock_file`   | Path to the lock file, formed by joining root_dir with    |
+|               | ".lock".                                                  |
+| `host_id_file`| Path to the host ID file, formed by joining root_dir with |
+|               | ".host_id".                                               |
+| `host_id`     | Unique UUID for the host. Read from host_id_file or       |
+|               | generated and saved to host_id_file if not existing.      |
+| `process_id`  | Randomly generated unique UUID for the current process.   |
+| `host_name`   | Hostname of the machine where the worker is running.      |
+| `secrets_root`| Path to the secrets root folder, derived by joining the   |
+|               | user's home folder with ".uniphant" and "secrets".        |
+| `secret_dir`  | Path to the secret directory, formed by joining           |
+|               | secrets_root with the relative path from root_dir to      |
+|               | script_dir.                                               |
+| `worker_id`   | Unique worker ID provided as a command line argument,     |
+|               | must be a valid UUID.                                     |
+| `foreground`  | Boolean value determining if the worker runs in the       |
+|               | foreground or as a daemon. Set using a command line flag  |
+|               | (--foreground or -f).                                     |
+| `pid_file`    | Path to the PID file, formed by joining the PID directory |
+|               | with the worker_id and ".pid".                            |
 
 ## 5. Signal Handling
 
@@ -171,11 +155,11 @@ The system should include functions to manage processes, such as starting, stopp
 
 The Uniphant system should have a robust logging mechanism. It should allow setting different log levels and support logging to files and standard output (stdout). The log files should be stored in a dedicated 'log' directory, organized by worker type.
 
-## 8. Main Function
+## 8. Worker
 
-`main()` is the entry point of the Uniphant worker script. It sets up the signal handler, configuration, and command line argument parsing. The function takes a worker_function as an argument, which is the function that will be executed as the worker task.
+`worker()` is the entry point of the Uniphant worker script. It sets up the signal handler, configuration, and command line argument parsing. The function takes a worker_function as an argument, which is the function that will be executed as the worker task.
 
-Function `main(worker_function)`
+Function `worker(worker_function)`
 1. Set up signal handler for process termination requests
 2. Set up configuration by reading config files and extracting script details
 3. Parse command line arguments

@@ -8,11 +8,13 @@ scripts=(
 
 # Function to generate a new host_id if needed and register it
 generate_and_register_host_id() {
-    if [ ! -f .host_id ]; then
+    if [ -f .host_id ]; then
+        host_id=$(<.host_id)
+    else
         host_id=$(uuidgen)
         echo -n "$host_id" > .host_id
-        psql -XtAc "SELECT register_host('$host_id', '$(hostname)')"
     fi
+    psql -XtAc "SELECT register_host('$host_id', '$(hostname)')" >/dev/null
 }
 
 # Function to extract worker_type from script path

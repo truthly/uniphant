@@ -1,7 +1,8 @@
 #!python3
 import requests
 import json
-from uniphant import *
+import traceback
+from uniphant.worker import worker, alive
 
 def next(connection):
     cursor = connection.cursor()
@@ -16,13 +17,13 @@ def set_response(connection, id, response):
     """, (id, json.dumps(response)))
 
 def set_error(connection, id, error):
-    cursor = connection.cursor().execute("""
+    connection.cursor().execute("""
         SELECT opentdb.get_trivia_question_set_error(%s, %s)
     """, (id, error))
 
-def get_trivia_question(self):
-    while self.alive():
-        id = next(self.connection)
+def get_trivia_question(connection, config, state, logger):
+    while alive(connection, state.foreground):
+        id = next(connection)
         if id is None:
             return
 
@@ -44,4 +45,4 @@ def get_trivia_question(self):
             set_error(self.connection, id, error)
 
 if __name__ == "__main__":
-    Worker(get_trivia_question)
+    worker(get_trivia_question)
