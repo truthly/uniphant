@@ -1,6 +1,5 @@
 import sys
 import logging
-from pathlib import Path
 
 def setup_logging(state):
     log_dir = state.root_dir / "log" / state.worker_type
