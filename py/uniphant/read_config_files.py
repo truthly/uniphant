@@ -1,11 +1,11 @@
 from pathlib import Path
-from .worker_state import WorkerState
+from .worker_context import WorkerContext
 from typing import Dict
 
-def read_config_files(state: WorkerState) -> Dict[str, str]:
+def read_config_files(context: WorkerContext) -> Dict[str, str]:
     config = {}
-    current_dir = state.script_dir
-    root_dir = state.root_dir
+    current_dir = context.script_dir
+    root_dir = context.root_dir
     directories = []
     while current_dir != root_dir:
         directories.append(current_dir)
@@ -22,13 +22,13 @@ def read_config_files(state: WorkerState) -> Dict[str, str]:
     # Merge key=value pairs from secret config files and return the secret_dir
     # in which integrations can store secret files/data received from APIs,
     # such as an API key obtained when logging in with a username/password.
-    current_dir = state.script_dir
+    current_dir = context.script_dir
     relative_dirs = []
-    while current_dir != state.root_dir:
-        relative_dirs.append(current_dir.relative_to(state.root_dir))
+    while current_dir != context.root_dir:
+        relative_dirs.append(current_dir.relative_to(context.root_dir))
         current_dir = current_dir.parent
     for rel_dir in relative_dirs:
-        secret_conf_file = state.secrets_root / rel_dir / 'secrets.conf'
+        secret_conf_file = context.secrets_root / rel_dir / 'secrets.conf'
         if secret_conf_file.exists():
             parsed_data = parse_key_value_format(secret_conf_file)
             for key, value in parsed_data.items():

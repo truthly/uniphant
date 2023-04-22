@@ -3,7 +3,7 @@ import requests
 import json
 import html
 import traceback
-from uniphant.worker import worker, alive
+from uniphant.worker import worker, should_run
 
 def next(connection):
     cursor = connection.cursor()
@@ -22,8 +22,8 @@ def set_error(connection, id, error):
         SELECT wikipedia.search_set_error(%s, %s)
     """, (id, error))
 
-def search(connection, config, state, logger):
-    while alive(connection, state.foreground):
+def search(connection, config, state, logger, signals):
+    while should_run(connection, state.foreground, signals):
         id, question = next(connection)
         if id is None:
             return

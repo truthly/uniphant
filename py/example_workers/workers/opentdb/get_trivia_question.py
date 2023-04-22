@@ -2,7 +2,7 @@
 import requests
 import json
 import traceback
-from uniphant.worker import worker, alive
+from uniphant.worker import worker, should_run
 
 def next(connection):
     cursor = connection.cursor()
@@ -21,8 +21,8 @@ def set_error(connection, id, error):
         SELECT opentdb.get_trivia_question_set_error(%s, %s)
     """, (id, error))
 
-def get_trivia_question(connection, config, state, logger):
-    while alive(connection, state.foreground):
+def get_trivia_question(connection, config, state, logger, signals):
+    while should_run(connection, state.foreground, signals):
         id = next(connection)
         if id is None:
             return

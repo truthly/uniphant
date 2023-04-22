@@ -2,11 +2,12 @@ import uuid
 import socket
 from filelock import FileLock
 import inspect
-from .worker_state import WorkerState
+from .worker_context import WorkerContext
 from typing import Tuple
 from pathlib import Path
+from uuid import UUID
 
-def init_worker(worker_id: str, foreground: bool) -> WorkerState:
+def init_worker(worker_id: UUID, foreground: bool) -> WorkerContext:
     root_dir, script_dir, worker_type = get_script_details()
     lock_file = root_dir / ".lock"
     host_id_file = root_dir / ".host_id"
@@ -15,20 +16,20 @@ def init_worker(worker_id: str, foreground: bool) -> WorkerState:
     secret_dir = secrets_root / script_dir.relative_to(root_dir)
     pid_dir = root_dir / "pid" / worker_type
     pid_dir.mkdir(parents=True, exist_ok=True)
-    return WorkerState(
+    return WorkerContext(
+        foreground=foreground,
+        host_id=get_or_create_host_id(lock_file, host_id_file),
+        host_id_file=host_id_file,
+        host_name=socket.gethostname(),
+        lock_file=lock_file,
+        pid_file=pid_dir / f"{worker_id}.pid",
+        process_id=uuid.uuid4(),
         root_dir=root_dir,
         script_dir=script_dir,
-        worker_type=worker_type,
-        lock_file=lock_file,
-        host_id_file=host_id_file,
-        host_id=get_or_create_host_id(lock_file, host_id_file),
-        process_id=str(uuid.uuid4()),
-        host_name=socket.gethostname(),
-        secrets_root=secrets_root,
         secret_dir=secret_dir,
+        secrets_root=secrets_root,
         worker_id=worker_id,
-        foreground=foreground,
-        pid_file=pid_dir / f"{worker_id}.pid"
+        worker_type=worker_type
     )
 
 def get_script_details() -> Tuple[Path, Path, str]:
@@ -46,14 +47,14 @@ def get_script_details() -> Tuple[Path, Path, str]:
     worker_type = ".".join(worker_type_components).rstrip(".py")
     return root_dir, script_dir, worker_type
 
-def get_or_create_host_id(lock_file: Path, host_id_file: Path):
+def get_or_create_host_id(lock_file: Path, host_id_file: Path) -> UUID:
     if not host_id_file.exists():
         with FileLock(str(lock_file)):
             if not host_id_file.exists():
-                host_id = str(uuid.uuid4())
-                host_id_file.write_text(host_id)
+                host_id = uuid.uuid4()
+                host_id_file.write_text(str(host_id))
     with FileLock(str(lock_file)):
-        host_id = host_id_file.read_text()
+        host_id = UUID(host_id_file.read_text())
         return host_id
 
 def get_calling_file_path() -> Path:
