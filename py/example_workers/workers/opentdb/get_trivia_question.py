@@ -4,11 +4,11 @@ import json
 import traceback
 from uniphant.worker import worker, should_run
 
-def next(connection):
+def next(connection, process_id):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT opentdb.get_trivia_question_next()
-    """)
+        SELECT opentdb.get_trivia_question_next(%s)
+    """, (str(process_id),))
     return cursor.fetchone()[0]
 
 def set_response(connection, id, response):
@@ -21,9 +21,9 @@ def set_error(connection, id, error):
         SELECT opentdb.get_trivia_question_set_error(%s, %s)
     """, (id, error))
 
-def get_trivia_question(connection, config, state, logger, signals):
-    while should_run(connection, state.foreground, signals):
-        id = next(connection)
+def get_trivia_question(connection, config, context, logger):
+    while should_run(connection, context.process_id, context.foreground):
+        id = next(connection, context.process_id)
         if id is None:
             return
 

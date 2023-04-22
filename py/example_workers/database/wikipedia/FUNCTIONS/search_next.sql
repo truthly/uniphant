@@ -1,12 +1,12 @@
 CREATE OR REPLACE FUNCTION wikipedia.search_next(
     OUT id UUID,
-    OUT question TEXT
+    OUT question TEXT,
+    process_id UUID
 )
 RETURNS RECORD AS
 $$
 <<fn>>
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
     ok BOOLEAN;
 BEGIN
     SELECT
@@ -26,7 +26,7 @@ BEGIN
     END IF;
 
     UPDATE wikipedia.search SET
-        process_id = fn.process_id
+        process_id = search_next.process_id
     WHERE wikipedia.search.id = search_next.id
     RETURNING TRUE INTO STRICT ok;
 

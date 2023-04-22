@@ -8,8 +8,6 @@ class WorkerContext:
     host_id: UUID
     host_id_file: Path
     host_name: str
-    lock_file: Path
-    pid_file: Path
     process_id: UUID
     root_dir: Path
     script_dir: Path

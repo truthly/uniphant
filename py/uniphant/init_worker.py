@@ -1,6 +1,6 @@
+import os
 import uuid
 import socket
-from filelock import FileLock
 import inspect
 from .worker_context import WorkerContext
 from typing import Tuple
@@ -9,20 +9,15 @@ from uuid import UUID
 
 def init_worker(worker_id: UUID, foreground: bool) -> WorkerContext:
     root_dir, script_dir, worker_type = get_script_details()
-    lock_file = root_dir / ".lock"
     host_id_file = root_dir / ".host_id"
     user_home = Path.home()
     secrets_root = user_home / ".uniphant" / "secrets"
     secret_dir = secrets_root / script_dir.relative_to(root_dir)
-    pid_dir = root_dir / "pid" / worker_type
-    pid_dir.mkdir(parents=True, exist_ok=True)
     return WorkerContext(
         foreground=foreground,
-        host_id=get_or_create_host_id(lock_file, host_id_file),
+        host_id=get_or_create_host_id(host_id_file),
         host_id_file=host_id_file,
         host_name=socket.gethostname(),
-        lock_file=lock_file,
-        pid_file=pid_dir / f"{worker_id}.pid",
         process_id=uuid.uuid4(),
         root_dir=root_dir,
         script_dir=script_dir,
@@ -47,15 +42,26 @@ def get_script_details() -> Tuple[Path, Path, str]:
     worker_type = ".".join(worker_type_components).rstrip(".py")
     return root_dir, script_dir, worker_type
 
-def get_or_create_host_id(lock_file: Path, host_id_file: Path) -> UUID:
+def get_or_create_host_id(host_id_file: Path) -> UUID:
     if not host_id_file.exists():
-        with FileLock(str(lock_file)):
-            if not host_id_file.exists():
-                host_id = uuid.uuid4()
-                host_id_file.write_text(str(host_id))
-    with FileLock(str(lock_file)):
-        host_id = UUID(host_id_file.read_text())
-        return host_id
+        # Create a temporary file with a unique name
+        host_id = uuid.uuid4()
+        temp_host_id_file = host_id_file.with_suffix("." + str(host_id))
+        temp_host_id_file.write_text(str(host_id))
+
+        try:
+            # Atomically rename the temporary file to the final file
+            os.rename(str(temp_host_id_file), str(host_id_file))
+        except FileExistsError:
+            # Another process has already created the host_id_file, so it's safe to ignore this error
+            pass
+        finally:
+            # Clean up the temporary file if it still exists
+            temp_host_id_file.unlink(missing_ok=True)
+
+    # Read the host_id from the file
+    host_id = UUID(host_id_file.read_text())
+    return host_id
 
 def get_calling_file_path() -> Path:
     # Get the entire call stack

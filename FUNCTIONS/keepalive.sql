@@ -1,15 +1,13 @@
-CREATE OR REPLACE FUNCTION keepalive()
+CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
 RETURNS BOOLEAN AS
 $$
-<<fn>>
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
     ok BOOLEAN;
 BEGIN
     IF NOT EXISTS
     (
         SELECT 1 FROM processes
-        WHERE processes.id = fn.process_id
+        WHERE processes.id = keepalive.process_id
     )
     THEN
         --
@@ -22,7 +20,7 @@ BEGIN
         --
         UPDATE processes SET
             heartbeat_at = now()
-        WHERE processes.id = fn.process_id
+        WHERE processes.id = keepalive.process_id
         RETURNING TRUE INTO STRICT ok;
 
         RETURN TRUE;

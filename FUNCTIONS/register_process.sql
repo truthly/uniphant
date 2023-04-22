@@ -1,25 +1,20 @@
 CREATE OR REPLACE FUNCTION register_process
 (
-    worker_id UUID
+    process_id UUID,
+    worker_id UUID,
+    pid INTEGER
 )
 RETURNS VOID AS
 $$
-<<fn>>
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
     ok BOOLEAN;
 BEGIN
-    IF EXISTS
-    (
-        SELECT 1 FROM processes
-        WHERE processes.id = fn.process_id
-        AND processes.worker_id = register_process.worker_id
-    ) THEN
-        RETURN;
-    END IF;
-
-    INSERT INTO processes (id, worker_id)
-    VALUES (process_id, worker_id)
+    --
+    -- Explicitly non-idempotent to counteract the hypothetical risk of multiple process instances
+    -- erroneously claiming exclusive ownership of the same process_id, which could potentially
+    -- stem from unintended forking or threading scenarios within the application's execution environment.
+    INSERT INTO processes (id, worker_id, pid)
+    VALUES (process_id, worker_id, pid)
     RETURNING TRUE INTO STRICT ok;
 
     RETURN;

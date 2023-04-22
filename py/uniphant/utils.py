@@ -1,6 +1,5 @@
 import time
 import signal
-from pathlib import Path
 import uuid
 import os
 
@@ -18,22 +17,9 @@ def is_pid_alive(pid: int) -> bool:
         return False
     return True
 
-def get_pid_for_running_process(pid_file: Path) -> int:
-    if not pid_file.exists():
-        return None
-    else:
-        with pid_file.open("r") as f:
-            pid = int(f.read())
-            if is_pid_alive(pid):
-                return pid
-            else:
-                pid_file.unlink()
-                return None
-
-def stop_running_process(pid_file: Path) -> None:
-    pid = get_pid_for_running_process(pid_file)
+def stop_running_process(pid: int) -> None:
     os.kill(pid, signal.SIGTERM)
     time.sleep(0.2)
-    while get_pid_for_running_process(pid_file) is not None:
+    while is_pid_alive(pid):
         print(f"Waiting for pid {pid} to die.")
         time.sleep(1)

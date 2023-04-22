@@ -3,17 +3,13 @@ import os
 import sys
 import time
 import traceback
-from types import FrameType
-from typing import Callable, Dict, Set
+from typing import Callable, Dict
 from uuid import UUID
 
 # Related third-party imports
 import daemon
-from daemon import pidfile
-from lockfile import LockTimeout
 from psycopg2.extensions import connection as Connection
 from logging import Logger
-import signal
 
 # Local application/library-specific imports
 from .worker_context import WorkerContext
@@ -21,8 +17,8 @@ from .init_worker import init_worker
 from .setup_logging import setup_logging
 from .read_config_files import read_config_files
 from .parse_arguments import parse_arguments
-from .database import connect, disconnect, keepalive, register_process, register_host
-from .utils import is_pid_alive, get_pid_for_running_process, stop_running_process
+from .database import connect, delete_process, keepalive, register_process, register_host, get_existing_process_info
+from .utils import is_pid_alive, stop_running_process
 
 # Your WorkerFunction should accept the following input parameters:
 #
@@ -37,22 +33,12 @@ from .utils import is_pid_alive, get_pid_for_running_process, stop_running_proce
 #
 #   logger: logging.Logger
 #       object for logging messages
-#
-#   signals: Set[int]
-#       set containing received signals
 WorkerFunction = Callable[
-    [Connection, Dict[str, str], WorkerContext, Logger, Set[int]],
+    [Connection, Dict[str, str], WorkerContext, Logger],
     None
 ]
 
 def worker(worker_function: WorkerFunction):
-    # Setup signal handler
-    signals: Set[int] = set()
-    signal.signal(signal.SIGTERM, lambda sig, frame: signal_handler(sig, frame, signals))
-
-    # Set umask to 0o077 to restrict access to the owner (current user) only
-    os.umask(0o077)
-
     command: str
     worker_id: UUID
     foreground: bool
@@ -70,42 +56,51 @@ def worker(worker_function: WorkerFunction):
     config: Dict[str, str] = read_config_files(context)
 
     # Connect to PostgreSQL database
-    connection: Connection = connect(context.process_id)
+    connection: Connection = connect()
 
     # Register host
     register_host(connection, context.host_id, context.host_name)
 
     # Check if worker is already running
-    cur_pid: int = get_pid_for_running_process(context.pid_file)
-    already_running = cur_pid is not None
+    existing_process_id: UUID
+    existing_pid: int
+    existing_process_id, existing_pid = get_existing_process_info(connection, context.host_id, context.worker_id)
+    if existing_pid is None:
+        already_running = False
+    elif is_pid_alive(existing_pid):
+        already_running = True
+    else:
+        print(f"Clean-up {context.worker_type} worker with ID {worker_id} and since it is no longer running.")
+        delete_process(connection, existing_process_id)
+        already_running = False
 
     # Handle command
     if command == 'start':
         if already_running:
-            print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running with PID: {cur_pid}")
+            print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running with PID: {existing_pid}")
             sys.exit(1)
         print(f"Starting {context.worker_type} worker with ID {worker_id}.")
-        start_worker(worker_function, connection, config, context, signals)
+        start_worker(worker_function, connection, config, context)
 
     elif command == 'restart':
         if already_running:
             print(f"Restarting {context.worker_type} worker with ID {worker_id}.")
-            stop_running_process(context.pid_file)
+            stop_running_process(existing_pid)
         else:
             print(f"Starting {context.worker_type} worker with ID {worker_id} (it wasn't running).")
-        start_worker(worker_function, connection, config, context, signals)
+        start_worker(worker_function, connection, config, context)
 
     elif command == 'stop':
         if already_running:
             print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
-            stop_running_process(context.pid_file)
+            stop_running_process(existing_pid)
         else:
             print(f"Cannot stop {context.worker_type} worker with ID {worker_id} since it is not running.")
             sys.exit(1)
 
     elif command == 'status':
         if already_running:
-            print(f"Worker {context.worker_type} with ID {worker_id} is running with PID: {cur_pid}")
+            print(f"Worker {context.worker_type} with ID {worker_id} is running with PID: {existing_pid}")
         else:
             print(f"Worker {context.worker_type} with ID {worker_id} is not running.")
 
@@ -115,47 +110,40 @@ def worker(worker_function: WorkerFunction):
 def start_daemon(worker_function: WorkerFunction,
                  connection: Connection,
                  config: Dict[str, str],
-                 context: WorkerContext,
-                 signals: Set[int]):
+                 context: WorkerContext):
     # Disconnect since daemon will fork and child cannot share database
     # connection with parent.
-    disconnect(connection)
+    connection.close()
     connection = None
     with daemon.DaemonContext(working_directory=str(context.script_dir)):
-        run(worker_function, connection, config, context, signals)
+        run(worker_function, connection, config, context)
 
 def run(worker_function: WorkerFunction,
         connection: Connection,
         config: Dict[str, str],
-        context: WorkerContext,
-        signals: Set[int]):
+        context: WorkerContext):
     if connection is None:
-        connection = connect(context.process_id)
+        connection = connect()
     logger: Logger = setup_logging(context)
+    pid = os.getpid()
     try:
-        with pidfile.TimeoutPIDLockFile(context.pid_file, acquire_timeout=1):
-            logger.info("Started PID: " + str(os.getpid()))
-            register_process(connection, context.worker_id)
-            while should_run(connection, context.foreground, signals):
-                worker_function(connection, config, context, logger, signals)
-                time.sleep(1)
-    except LockTimeout:
-        logger.error(f"PID file {context.pid_file} is already locked by another process.")
+        logger.info(f"Started PID: {pid}")
+        register_process(connection, context.process_id, context.worker_id, pid)
+        while should_run(connection, context.process_id, context.foreground):
+            worker_function(connection, config, context, logger)
+            time.sleep(1)
     except Exception as e:
         tb = traceback.format_exc()
         error = f'{e}\n{tb}'
         logger.error(error)
     finally:
-        logger.info("Stopped PID: " + str(os.getpid()))
-        disconnect(connection)
+        logger.info(f"Stopped PID: {pid}")
+        delete_process(connection, context.process_id)
+        connection.close()
 
-def should_run(connection: Connection, foreground: bool, signals: Set[int]) -> bool:
+def should_run(connection: Connection, process_id: UUID, foreground: bool) -> bool:
     # Stop if termination has been requested, via the database
-    if not keepalive(connection):
-        return False
-
-    # Stop if termination has been requested, via a TERM signal (signal 15)
-    if signal.SIGTERM in signals:
+    if not keepalive(connection, process_id):
         return False
 
     # Stop if running in foreground and the parent process has died
@@ -164,6 +152,3 @@ def should_run(connection: Connection, foreground: bool, signals: Set[int]) -> b
 
     # Otherwise the process should continue running
     return True
-
-def signal_handler(sig: int, frame: FrameType, signals: Set[int]):
-    signals.add(sig)

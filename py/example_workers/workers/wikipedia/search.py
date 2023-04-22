@@ -5,11 +5,11 @@ import html
 import traceback
 from uniphant.worker import worker, should_run
 
-def next(connection):
+def next(connection, process_id):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT id, question FROM wikipedia.search_next()
-    """)
+        SELECT id, question FROM wikipedia.search_next(%s)
+    """, (str(process_id),))
     return cursor.fetchone()
 
 def set_response(connection, id, response):
@@ -22,9 +22,9 @@ def set_error(connection, id, error):
         SELECT wikipedia.search_set_error(%s, %s)
     """, (id, error))
 
-def search(connection, config, state, logger, signals):
-    while should_run(connection, state.foreground, signals):
-        id, question = next(connection)
+def search(connection, config, context, logger):
+    while should_run(connection, context.process_id, context.foreground):
+        id, question = next(connection, context.process_id)
         if id is None:
             return
 

@@ -9,17 +9,14 @@ def setup_logging(context: WorkerContext) -> logging.Logger:
     logger_name = str(context.worker_id) + " " + context.worker_type
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
-    # File handler
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.INFO)
-    formatstr = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    formatter = logging.Formatter(formatstr)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-    # Stream handler
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
     if context.foreground:
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.INFO)
-        sh.setFormatter(formatter)
-        logger.addHandler(sh)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
     return logger

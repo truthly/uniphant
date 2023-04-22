@@ -791,6 +791,7 @@ CREATE TABLE processes
 (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     worker_id UUID NOT NULL,
+    pid INTEGER NOT NULL,
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id),
@@ -833,43 +834,36 @@ END;
 $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION register_process
 (
-    worker_id UUID
+    process_id UUID,
+    worker_id UUID,
+    pid INTEGER
 )
 RETURNS VOID AS
 $$
-<<fn>>
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
     ok BOOLEAN;
 BEGIN
-    IF EXISTS
-    (
-        SELECT 1 FROM processes
-        WHERE processes.id = fn.process_id
-        AND processes.worker_id = register_process.worker_id
-    ) THEN
-        RETURN;
-    END IF;
-
-    INSERT INTO processes (id, worker_id)
-    VALUES (process_id, worker_id)
+    --
+    -- Explicitly non-idempotent to counteract the hypothetical risk of multiple process instances
+    -- erroneously claiming exclusive ownership of the same process_id, which could potentially
+    -- stem from unintended forking or threading scenarios within the application's execution environment.
+    INSERT INTO processes (id, worker_id, pid)
+    VALUES (process_id, worker_id, pid)
     RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION keepalive()
+CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
 RETURNS BOOLEAN AS
 $$
-<<fn>>
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
     ok BOOLEAN;
 BEGIN
     IF NOT EXISTS
     (
         SELECT 1 FROM processes
-        WHERE processes.id = fn.process_id
+        WHERE processes.id = keepalive.process_id
     )
     THEN
         --
@@ -882,20 +876,22 @@ BEGIN
         --
         UPDATE processes SET
             heartbeat_at = now()
-        WHERE processes.id = fn.process_id
+        WHERE processes.id = keepalive.process_id
         RETURNING TRUE INTO STRICT ok;
 
         RETURN TRUE;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION disconnect()
+CREATE OR REPLACE FUNCTION delete_process(process_id UUID)
 RETURNS VOID AS
 $$
 DECLARE
-    process_id UUID := current_setting('application_name')::UUID;
+    ok BOOLEAN;
 BEGIN
-    DELETE FROM processes WHERE id = process_id;
+    DELETE FROM processes
+    WHERE processes.id = delete_process.process_id
+    RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;
@@ -1010,6 +1006,46 @@ AS $$
     WHERE workers_to_remove.worker_id = workers.id
     RETURNING id
 $$;
+CREATE OR REPLACE FUNCTION get_existing_process_info
+(
+    OUT process_id UUID,
+    OUT pid INTEGER,
+    host_id UUID,
+    worker_id UUID
+)
+RETURNS RECORD AS
+$$
+DECLARE
+    cur_host_id UUID;
+BEGIN
+    IF num_nulls(host_id, worker_id) > 0 THEN
+        RAISE EXCEPTION 'Both host_id and worker_id must be non-null values.';
+    END IF;
+
+    SELECT
+        processes.id,
+        processes.pid,
+        workers.host_id
+    INTO
+        process_id,
+        pid,
+        cur_host_id
+    FROM processes
+    JOIN workers ON workers.id = processes.worker_id
+    WHERE workers.id = get_existing_process_info.worker_id;
+
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    IF cur_host_id <> host_id THEN
+        RAISE EXCEPTION 'Mismatch in host_id: worker_id % has pid % on host %, expected host %.',
+            worker_id, pid, cur_host_id, host_id;
+    END IF;
+
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
 --
 -- register all functions in the api schema as resources
 --
