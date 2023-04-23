@@ -18,7 +18,7 @@ use crate::parse_arguments::{Command, parse_arguments};
 use crate::read_config_files::read_config_files;
 use crate::setup_logging::setup_logging;
 use crate::utils::{is_pid_alive, stop_running_process};
-use crate::worker_context::WorkerContext;
+pub use crate::worker_context::WorkerContext;
 
 pub type WorkerFunction = fn(
     &mut Client,
