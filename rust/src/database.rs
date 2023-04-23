@@ -45,22 +45,18 @@ pub fn get_existing_process_info(
     host_id: Uuid,
     worker_id: Uuid,
 ) -> Option<(Uuid, u32)> {
-    let rows = connection
+    connection
         .query(
             "SELECT process_id, pid FROM get_existing_process_info($1, $2)",
             &[&host_id, &worker_id],
         )
-        .expect("Failed to execute get_existing_process_info");
-
-    let row = rows.iter().next().unwrap();
-    let process_id: Option<Uuid> = row.get("process_id");
-
-    match process_id {
-        Some(id) => {
+        .ok()?
+        .iter()
+        .next()
+        .map(|row| {
+            let process_id: Uuid = row.get("process_id");
             let pid: i32 = row.get("pid");
             let pid_u32: u32 = pid.try_into().unwrap();
-            Some((id, pid_u32))
-        },
-        None => None,
-    }
+            (process_id, pid_u32)
+        })
 }
