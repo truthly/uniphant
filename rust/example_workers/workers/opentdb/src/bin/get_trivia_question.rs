@@ -3,9 +3,7 @@ use log::{error, info};
 use postgres::Client;
 use uuid::Uuid;
 use postgres::Error as PgError;
-
-use uniphant::worker_context::WorkerContext;
-use uniphant::worker::worker;
+use uniphant;
 
 fn next(connection: &mut Client, process_id: Uuid) -> Result<Option<Uuid>, PgError> {
     let stmt = "
@@ -41,9 +39,9 @@ fn set_error(connection: &mut Client, id: Uuid, error: &str) -> Result<(), PgErr
 fn get_trivia_question(
     connection: &mut Client,
     _config: &std::collections::HashMap<String, String>,
-    context: &WorkerContext,
+    context: &uniphant::worker::WorkerContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    loop {
+    while uniphant::worker::should_run(connection, context.process_id, context.foreground) {
         match next(connection, context.process_id) {
             Ok(Some(id)) => {
                 info!("Getting Question for {}", id);
@@ -84,5 +82,5 @@ fn get_trivia_question(
 }
 
 fn main() {
-    worker(get_trivia_question);
+    uniphant::worker(get_trivia_question);
 }

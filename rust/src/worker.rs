@@ -131,6 +131,21 @@ pub fn worker(worker_function: WorkerFunction) {
     }
 }
 
+pub fn should_run(connection: &mut Client, process_id: Uuid, foreground: bool) -> bool {
+    // Stop if termination has been requested, via the database
+    if !keepalive(connection, process_id) {
+        return false;
+    }
+
+    // Stop if running in foreground and the parent process has died
+    if foreground && !is_pid_alive(parent_id()) {
+        return false;
+    }
+
+    // Otherwise, the process should continue running
+    true
+}
+
 fn start_daemon(
     worker_function: WorkerFunction,
     connection: Client,
@@ -194,19 +209,4 @@ fn run(
     info!("Stopped PID: {}", pid);
     delete_process(&mut connection, context.process_id);
     connection.close().expect("Failed to close connection");
-}
-
-fn should_run(connection: &mut Client, process_id: Uuid, foreground: bool) -> bool {
-    // Stop if termination has been requested, via the database
-    if !keepalive(connection, process_id) {
-        return false;
-    }
-
-    // Stop if running in foreground and the parent process has died
-    if foreground && !is_pid_alive(parent_id()) {
-        return false;
-    }
-
-    // Otherwise, the process should continue running
-    true
 }
