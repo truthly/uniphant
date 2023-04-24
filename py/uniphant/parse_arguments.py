@@ -17,15 +17,12 @@ def parse_arguments() -> Tuple[str, UUID, bool]:
                         default=False,
                         help='Do not daemonize')
     args = parser.parse_args()
-
     if not is_valid_uuid(args.worker_id):
         print(f"The specified worker_id {args.worker_id} is not a valid UUID")
         parser.print_usage(sys.stderr)
         sys.exit(2)
-
     # Extract parsed arguments
     command = args.command[0]
     worker_id = UUID(args.worker_id)
     foreground = args.foreground
-
     return command, worker_id, foreground

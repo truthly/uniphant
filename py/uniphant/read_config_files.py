@@ -4,37 +4,31 @@ from typing import Dict
 
 def read_config_files(context: WorkerContext) -> Dict[str, str]:
     config = {}
-    current_dir = context.script_dir
-    root_dir = context.root_dir
-    directories = []
-    while current_dir != root_dir:
-        directories.append(current_dir)
-        current_dir = current_dir.parent
-    directories.append(root_dir)
-    for directory in directories:
-        conf_file = directory / "uniphant.conf"
-        if conf_file.exists():
-            parsed_data = parse_key_value_format(conf_file)
-            for key, value in parsed_data.items():
+    current_dir = context.worker_dir
+    while True:
+        # Read regular configuration files
+        uniphant_conf_path = current_dir / "uniphant.conf"
+        if uniphant_conf_path.is_file():
+            new_config = parse_key_value_format(uniphant_conf_path)
+            for key, value in new_config.items():
                 if key in config:
-                    raise ValueError(f"Duplicate config key: {key}")
+                    raise ValueError(f'Duplicate key "{key}" found in configuration files.')
                 config[key] = value
-    # Merge key=value pairs from secret config files and return the secret_dir
-    # in which integrations can store secret files/data received from APIs,
-    # such as an API key obtained when logging in with a username/password.
-    current_dir = context.script_dir
-    relative_dirs = []
-    while current_dir != context.root_dir:
-        relative_dirs.append(current_dir.relative_to(context.root_dir))
-        current_dir = current_dir.parent
-    for rel_dir in relative_dirs:
-        secret_conf_file = context.secrets_root / rel_dir / 'secrets.conf'
-        if secret_conf_file.exists():
-            parsed_data = parse_key_value_format(secret_conf_file)
-            for key, value in parsed_data.items():
+        # Read secret configuration files
+        try:
+            relative_path = current_dir.relative_to(context.root_dir)
+        except ValueError:
+            relative_path = Path(".")
+        secrets_conf_path = context.secrets_root / relative_path / "secrets.conf"
+        if secrets_conf_path.is_file():
+            new_secrets = parse_key_value_format(secrets_conf_path)
+            for key, value in new_secrets.items():
                 if key in config:
-                    raise ValueError(f"Duplicate config key: {key}")
+                    raise ValueError(f'Duplicate key "{key}" found in secrets files.')
                 config[key] = value
+        if current_dir == context.root_dir:
+            break
+        current_dir = current_dir.parent
     return config
 
 def parse_key_value_format(conf_file: Path):

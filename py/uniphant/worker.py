@@ -53,8 +53,8 @@ def worker(worker_function: WorkerFunction):
 
     # Connect to PostgreSQL database
     connection: Connection = connect(
-        dbname=config.get("PGDATABASE", context.current_user),
-        user=config.get("PGUSER", context.current_user),
+        dbname=config.get("PGDATABASE", "uniphant"),
+        user=config.get("PGUSER", "uniphant"),
         password=config.get("PGPASSWORD", None),
         host=config.get("PGHOST", "localhost"),
         port=int(config.get("PGPORT", "5432"))
@@ -113,7 +113,7 @@ def start_daemon(worker_function: WorkerFunction,
     # connection with parent.
     connection.close()
     connection = None
-    with daemon.DaemonContext(working_directory=str(context.script_dir)):
+    with daemon.DaemonContext(working_directory=str(context.worker_dir)):
         run(worker_function, connection, config, context)
 
 def run(worker_function: WorkerFunction,

@@ -1,47 +1,48 @@
 import os
+import sys
 import uuid
 import socket
-import inspect
 from .worker_context import WorkerContext
 from typing import Tuple
 from pathlib import Path
 from uuid import UUID
 
 def init_worker(worker_id: UUID, foreground: bool) -> WorkerContext:
-    root_dir, script_dir, worker_type = get_script_details()
+    root_dir, worker_dir, worker_type = retrieve_worker_executable_info()
     host_id_file = root_dir / ".host_id"
     user_home = Path.home()
-    secrets_root = user_home / ".uniphant" / "secrets"
-    secret_dir = secrets_root / script_dir.relative_to(root_dir)
+    secrets_root = user_home / ".uniphant" / "secrets" / "workers"
+    secret_dir = secrets_root / worker_dir.relative_to(root_dir)
     return WorkerContext(
-        current_user=os.getlogin(),
         foreground=foreground,
         host_id=get_or_create_host_id(host_id_file),
         host_id_file=host_id_file,
         host_name=socket.gethostname(),
         process_id=uuid.uuid4(),
         root_dir=root_dir,
-        script_dir=script_dir,
+        worker_dir=worker_dir,
         secret_dir=secret_dir,
         secrets_root=secrets_root,
         worker_id=worker_id,
         worker_type=worker_type
     )
 
-def get_script_details() -> Tuple[Path, Path, str]:
-    script_path = get_calling_file_path()
-    script_dir = script_path.parent
-    path_components = script_path.parts
-    workers_count = path_components.count("workers")
+def retrieve_worker_executable_info():
+    current_exe_path = Path(sys.argv[0]).resolve()
+    worker_dir = current_exe_path.parent
+    path_components = current_exe_path.parts
+    workers_count = path_components.count('workers')
     if workers_count == 0:
-        raise ValueError("The worker script must reside under 'workers'")
+        raise ValueError("Worker executable must reside under a directory named 'workers'")
     elif workers_count > 1:
-        raise ValueError("There should be only one 'workers' in the path")
-    workers_index = path_components.index("workers")
-    root_dir = Path(*path_components[:workers_index])
-    worker_type_components = path_components[workers_index + 1:]
-    worker_type = ".".join(worker_type_components).rstrip(".py")
-    return root_dir, script_dir, worker_type
+        raise ValueError("There must be only one 'workers' directory in the path")
+    workers_index = path_components.index('workers')
+    root_dir = Path(*path_components[:workers_index + 1])
+    worker_type_parts = path_components[workers_index + 1:-1]
+    worker_type = ".".join(worker_type_parts)
+    if current_exe_path.suffix:
+        worker_type = worker_type[:-len(current_exe_path.suffix)]
+    return root_dir, worker_dir, worker_type
 
 def get_or_create_host_id(host_id_file: Path) -> UUID:
     if not host_id_file.exists():
@@ -49,7 +50,6 @@ def get_or_create_host_id(host_id_file: Path) -> UUID:
         host_id = uuid.uuid4()
         temp_host_id_file = host_id_file.with_suffix("." + str(host_id))
         temp_host_id_file.write_text(str(host_id))
-
         try:
             # Atomically rename the temporary file to the final file
             os.rename(str(temp_host_id_file), str(host_id_file))
@@ -59,17 +59,6 @@ def get_or_create_host_id(host_id_file: Path) -> UUID:
         finally:
             # Clean up the temporary file if it still exists
             temp_host_id_file.unlink(missing_ok=True)
-
     # Read the host_id from the file
     host_id = UUID(host_id_file.read_text())
     return host_id
-
-def get_calling_file_path() -> Path:
-    # Get the entire call stack
-    stack = inspect.stack()
-
-    # Get the last frame_info in the call stack (the top-level script)
-    frame_info = stack[-1]
-
-    # Return the file path of the top-level script
-    return Path(frame_info.filename).resolve()

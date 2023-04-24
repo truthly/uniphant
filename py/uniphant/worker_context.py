@@ -4,15 +4,14 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class WorkerContext:
-    current_user: str
     foreground: bool
     host_id: UUID
     host_id_file: Path
     host_name: str
     process_id: UUID
     root_dir: Path
-    script_dir: Path
     secret_dir: Path
     secrets_root: Path
+    worker_dir: Path
     worker_id: UUID
     worker_type: str
