@@ -1,4 +1,6 @@
 #!/bin/bash
+export PGDATABASE=uniphant
+export PGUSER=uniphant
 
 # List of worker scripts
 scripts=(

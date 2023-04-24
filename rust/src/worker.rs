@@ -7,17 +7,17 @@ use std::fs;
 
 use daemonize::Daemonize;
 use log::{error, info};
-use postgres::Client;
+use postgres::{Client, Config};
 use uuid::Uuid;
 
 use crate::database::{
-    connect, get_existing_process_info, keepalive, register_host, register_process, delete_process
+    connect, database_config, register_host, register_process, keepalive, delete_process, get_worker_process_id
 };
 use crate::init_worker::init_worker;
 use crate::parse_arguments::{Command, parse_arguments};
 use crate::read_config_files::read_config_files;
 use crate::setup_logging::setup_logging;
-use crate::utils::{is_pid_alive, stop_running_process};
+use crate::utils::{is_pid_alive, stop_worker_process};
 pub use crate::worker_context::WorkerContext;
 
 pub type WorkerFunction = fn(
@@ -36,96 +36,66 @@ pub fn worker(worker_function: WorkerFunction) {
     let config = read_config_files(&context);
 
     // Connect to PostgreSQL database
-    let mut connection = connect();
+    let dbconfig = database_config(
+        config.get("PGDATABASE").map(|s| s.as_str()).or_else(|| Some("uniphant")),
+        config.get("PGUSER").map(|s| s.as_str()).or_else(|| Some("uniphant")),
+        config.get("PGPASSWORD").map(|s| s.as_str()),
+        config.get("PGHOST").map(|s| s.as_str()).or_else(|| Some("localhost")),
+        config.get("PGPORT").and_then(|s| s.parse::<u16>().ok()),
+    );
+    let mut connection = connect(dbconfig.clone());
 
     // Register host
     register_host(&mut connection, context.host_id, &context.host_name);
 
     // Check if worker is already running
-    let (existing_process_id, existing_pid) = match get_existing_process_info(&mut connection, context.host_id, context.worker_id) {
-        Some((process_id, pid)) => (Some(process_id), Some(pid)),
-        None => (None, None),
-    };
-    let already_running = match existing_pid {
-        Some(pid) if is_pid_alive(pid) => true,
-        Some(_) => {
-            if let Some(process_id) = existing_process_id {
-                println!(
-                    "Clean-up {} worker with ID {} since it is no longer running.",
-                    context.worker_type, worker_id
-                );
-                delete_process(&mut connection, process_id);
-            }
-            false
-        }
-        None => false,
-    };
+    let existing_process_id = get_worker_process_id(&mut connection, context.worker_id);
+    let already_running = existing_process_id.is_some();
 
     // Handle command
     match command {
         Command::Start => {
             if already_running {
-                if let Some(pid) = existing_pid {
-                    eprintln!(
-                        "Cannot start {} worker with ID {} since it is already running with PID: {}",
-                        context.worker_type, worker_id, pid
-                    );
-                }
-                process::exit(1);
+                eprintln!("Cannot start {} worker with ID {} since it is already running.", context.worker_type, worker_id);
+                std::process::exit(1);
+            }
+            println!("Starting {} worker with ID {}.", context.worker_type, worker_id);
+            if foreground {
+                run(worker_function, connection, &config, &context);
             } else {
-                println!("Starting {} worker with ID {}.", context.worker_type, worker_id);
-                if foreground {
-                    run(worker_function, connection, &config, &context);
-                } else {
-                    start_daemon(worker_function, connection, config, context);
-                }
+                // Disconnect to reconnect since we cannot share a connection with fork.
+                drop(connection);
+                start_daemon(worker_function, dbconfig, &config, context);
             }
         }
         Command::Restart => {
             if already_running {
-                println!("Restarting {} worker with ID {}.", context.worker_type, worker_id);
-                if let Some(pid) = existing_pid {
-                    stop_running_process(pid);
-                }
-            } else {
-                println!(
-                    "Starting {} worker with ID {} (it wasn't running).",
-                    context.worker_type, worker_id
-                );
+                println!("Stopping {} worker with ID {}.", context.worker_type, worker_id);
+                stop_worker_process(&mut connection, context.worker_id, existing_process_id.unwrap());
             }
+            println!("Starting {} worker with ID {}.", context.worker_type, worker_id);
             if foreground {
                 run(worker_function, connection, &config, &context);
             } else {
-                start_daemon(worker_function, connection, config, context);
+                // Disconnect to reconnect since we cannot share a connection with fork.
+                drop(connection);
+                start_daemon(worker_function, dbconfig, &config, context);
             }
         }
         Command::Stop => {
             if already_running {
                 println!("Stopping {} worker with ID {}.", context.worker_type, worker_id);
-                if let Some(pid) = existing_pid {
-                    stop_running_process(pid);
-                }
+                stop_worker_process(&mut connection, context.worker_id, existing_process_id.unwrap());
             } else {
-                eprintln!(
-                    "Cannot stop {} worker with ID {} since it is not running.",
-                    context.worker_type, worker_id
-                );
-                process::exit(1);
+                eprintln!("Cannot stop {} worker with ID {} since it is not running.", context.worker_type, worker_id);
+                std::process::exit(1);
             }
         }
         Command::Status => {
             if already_running {
-                if let Some(pid) = existing_pid {
-                    println!(
-                        "Worker {} with ID {} is running with PID: {}",
-                        context.worker_type, worker_id, pid
-                    );
-                }
+                println!("Worker {} with ID {} is running.", context.worker_type, worker_id);
             } else {
-                println!(
-                    "Worker {} with ID {} is not running.",
-                    context.worker_type, worker_id
-                );
+                println!("Worker {} with ID {} is not running.", context.worker_type, worker_id);
             }
         }
     }
@@ -148,14 +118,10 @@ pub fn should_run(connection: &mut Client, process_id: Uuid, foreground: bool) -
 
 fn start_daemon(
     worker_function: WorkerFunction,
-    connection: Client,
-    config: HashMap<String, String>,
+    dbconfig: Config,
+    config: &HashMap<String, String>,
     context: WorkerContext,
 ) {
-    // Disconnect since daemon will fork and child cannot share database
-    // connection with parent.
-    connection.close().expect("Failed to close connection");
-
     // Create the PID directory path
     let pid_dir = context.root_dir.join("pid").join(&context.worker_type);
     if let Err(e) = fs::create_dir_all(&pid_dir) {
@@ -167,12 +133,12 @@ fn start_daemon(
     let pid_file = pid_dir.join(format!("{}.pid", context.worker_id));
 
     let daemonize = Daemonize::new()
-        .working_directory(context.script_dir.clone())
+        .working_directory(context.worker_dir.clone())
         .pid_file(pid_file);
 
     match daemonize.start() {
         Ok(_) => {
-            let connection = connect();
+            let connection = connect(dbconfig);
             run(worker_function, connection, &config, &context);
         }
         Err(e) => {
@@ -193,15 +159,12 @@ fn run(
     info!("Started PID: {}", pid);
     register_process(&mut connection, context.process_id, context.worker_id, pid as i32);
 
-    loop {
-        match worker_function(&mut connection, config, context) {
+    while should_run(&mut connection, context.process_id, context.foreground) {
+        match worker_function(&mut connection, &config, context) {
             Ok(_) => {}
             Err(e) => {
                 error!("Error running worker function: {}", e);
             }
-        }
-        if !should_run(&mut connection, context.process_id, context.foreground) {
-            break;
         }
         thread::sleep(Duration::from_secs(1));
     }
