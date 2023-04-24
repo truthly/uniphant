@@ -44,6 +44,7 @@ CREATE TABLE processes
     worker_id UUID NOT NULL,
     pid INTEGER NOT NULL,
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    termination_requested BOOLEAN NOT NULL DEFAULT FALSE,
 
     PRIMARY KEY (id),
     FOREIGN KEY (worker_id) REFERENCES workers,
@@ -109,29 +110,18 @@ CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
 RETURNS BOOLEAN AS
 $$
 DECLARE
-    ok BOOLEAN;
+    termination_requested BOOLEAN;
 BEGIN
-    IF NOT EXISTS
-    (
-        SELECT 1 FROM processes
-        WHERE processes.id = keepalive.process_id
-    )
-    THEN
-        --
-        -- Termination requested, killing process.
-        --
-        RETURN FALSE;
-    ELSE
-        --
-        -- Process allowed to live on, update heartbeat.
-        --
-        UPDATE processes SET
-            heartbeat_at = now()
-        WHERE processes.id = keepalive.process_id
-        RETURNING TRUE INTO STRICT ok;
-
-        RETURN TRUE;
-    END IF;
+    UPDATE processes SET
+        heartbeat_at = now()
+    WHERE processes.id = keepalive.process_id
+    RETURNING processes.termination_requested
+    INTO STRICT termination_requested;
+    --
+    -- Process should continue to run as long as
+    -- termination has not been requested.
+    --
+    RETURN NOT termination_requested;
 END;
 $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION delete_process(process_id UUID)
@@ -257,42 +247,45 @@ AS $$
     WHERE workers_to_remove.worker_id = workers.id
     RETURNING id
 $$;
-CREATE OR REPLACE FUNCTION get_existing_process_info
+CREATE OR REPLACE FUNCTION get_worker_process_id
 (
     OUT process_id UUID,
-    OUT pid INTEGER,
-    host_id UUID,
     worker_id UUID
 )
-RETURNS RECORD AS
+RETURNS UUID AS
+$$
+BEGIN
+    IF worker_id IS NULL THEN
+        RAISE EXCEPTION 'worker_id must not be NULL';
+    END IF;
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM processes
+        WHERE processes.worker_id = get_worker_process_id.worker_id
+    )
+    THEN
+        RETURN;
+    ELSE
+        SELECT
+            processes.id
+        INTO STRICT
+            process_id
+        FROM processes
+        WHERE processes.worker_id = get_worker_process_id.worker_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION request_process_termination(process_id UUID)
+RETURNS VOID AS
 $$
 DECLARE
-    cur_host_id UUID;
+    ok BOOLEAN;
 BEGIN
-    IF num_nulls(host_id, worker_id) > 0 THEN
-        RAISE EXCEPTION 'Both host_id and worker_id must be non-null values.';
-    END IF;
-
-    SELECT
-        processes.id,
-        processes.pid,
-        workers.host_id
-    INTO
-        process_id,
-        pid,
-        cur_host_id
-    FROM processes
-    JOIN workers ON workers.id = processes.worker_id
-    WHERE workers.id = get_existing_process_info.worker_id;
-
-    IF NOT FOUND THEN
-        RETURN;
-    END IF;
-
-    IF cur_host_id <> host_id THEN
-        RAISE EXCEPTION 'Mismatch in host_id: worker_id % has pid % on host %, expected host %.',
-            worker_id, pid, cur_host_id, host_id;
-    END IF;
+    UPDATE processes
+    SET termination_requested = TRUE
+    WHERE processes.id = request_process_termination.process_id
+    RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;

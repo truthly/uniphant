@@ -80,7 +80,8 @@ SQL_SRC = \
 	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql \
-	FUNCTIONS/get_existing_process_info.sql \
+	FUNCTIONS/get_worker_process_id.sql \
+	FUNCTIONS/request_process_termination.sql \
 	footer.sql
 
 uniphant--1.6.sql: $(SQL_SRC)
@@ -99,7 +100,8 @@ SQL_SRC = \
 	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql \
-	FUNCTIONS/get_existing_process_info.sql
+	FUNCTIONS/get_worker_process_id.sql \
+	FUNCTIONS/request_process_termination.sql
 
 uniphant--1.5--1.6.sql: $(SQL_SRC)
 	cat $^ > $@

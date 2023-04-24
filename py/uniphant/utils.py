@@ -1,7 +1,9 @@
 import time
-import signal
 import uuid
 import os
+from psycopg2.extensions import connection as Connection
+from uuid import UUID
+from .database import request_process_termination, get_worker_process_id
 
 def is_valid_uuid(text: str) -> bool:
     try:
@@ -17,9 +19,9 @@ def is_pid_alive(pid: int) -> bool:
         return False
     return True
 
-def stop_running_process(pid: int) -> None:
-    os.kill(pid, signal.SIGTERM)
-    time.sleep(0.2)
-    while is_pid_alive(pid):
-        print(f"Waiting for pid {pid} to die.")
+def stop_worker_process(connection: Connection, worker_id: UUID, process_id: UUID) -> None:
+    request_process_termination(connection, process_id)
+    time.sleep(1)
+    while get_worker_process_id(connection, worker_id) is not None:
+        print(f"Waiting for process {process_id} to die.")
         time.sleep(1)

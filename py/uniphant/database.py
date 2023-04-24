@@ -8,36 +8,45 @@ def connect() -> Connection:
     connection.autocommit = True
     return connection
 
-def delete_process(connection: Connection, process_id: UUID) -> None:
-    connection.cursor().execute("""
-        SELECT delete_process(%s)
-    """, (str(process_id),))
-
 def register_host(connection: Connection, host_id: UUID, host_name: str) -> None:
     connection.cursor().execute("""
-        SELECT register_host(%s,%s)
+        SELECT register_host(
+            host_id := %s,
+            host_name := %s
+        )
     """, (str(host_id), host_name))
 
 def register_process(connection: Connection, process_id: UUID, worker_id: UUID, pid: int) -> None:
     connection.cursor().execute("""
-        SELECT register_process(%s,%s,%s)
+        SELECT register_process(
+            process_id := %s,
+            worker_id := %s,
+            pid := %s
+        )
     """, (str(process_id),str(worker_id),pid))
-
-def get_existing_process_info(connection: Connection, host_id: UUID, worker_id: UUID) -> Tuple[UUID, int]:
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT process_id, pid FROM get_existing_process_info(%s,%s)
-    """, (str(host_id),str(worker_id)))
-    tuple = cursor.fetchone()
-    if tuple is None:
-        return
-    process_id: UUID = tuple[0]
-    pid: int = tuple[1]
-    return process_id, pid
 
 def keepalive(connection: Connection, process_id: UUID) -> bool:
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT keepalive(%s)
+        SELECT keepalive(process_id := %s)
     """, (str(process_id),))
-    return cursor.fetchone()[0]
+    should_run: bool = cursor.fetchone()[0]
+    return should_run
+
+def delete_process(connection: Connection, process_id: UUID) -> None:
+    connection.cursor().execute("""
+        SELECT delete_process(process_id := %s)
+    """, (str(process_id),))
+
+def get_worker_process_id(connection: Connection, worker_id: UUID) -> UUID:
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT get_worker_process_id(worker_id := %s)
+    """, (str(worker_id),))
+    process_id: UUID = cursor.fetchone()[0]
+    return process_id
+
+def request_process_termination(connection: Connection, process_id: UUID) -> None:
+    connection.cursor().execute("""
+        SELECT request_process_termination(process_id := %s)
+    """, (str(process_id),))

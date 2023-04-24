@@ -2,28 +2,17 @@ CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
 RETURNS BOOLEAN AS
 $$
 DECLARE
-    ok BOOLEAN;
+    termination_requested BOOLEAN;
 BEGIN
-    IF NOT EXISTS
-    (
-        SELECT 1 FROM processes
-        WHERE processes.id = keepalive.process_id
-    )
-    THEN
-        --
-        -- Termination requested, killing process.
-        --
-        RETURN FALSE;
-    ELSE
-        --
-        -- Process allowed to live on, update heartbeat.
-        --
-        UPDATE processes SET
-            heartbeat_at = now()
-        WHERE processes.id = keepalive.process_id
-        RETURNING TRUE INTO STRICT ok;
-
-        RETURN TRUE;
-    END IF;
+    UPDATE processes SET
+        heartbeat_at = now()
+    WHERE processes.id = keepalive.process_id
+    RETURNING processes.termination_requested
+    INTO STRICT termination_requested;
+    --
+    -- Process should continue to run as long as
+    -- termination has not been requested.
+    --
+    RETURN NOT termination_requested;
 END;
 $$ LANGUAGE plpgsql;

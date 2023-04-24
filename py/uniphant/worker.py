@@ -17,8 +17,9 @@ from .init_worker import init_worker
 from .setup_logging import setup_logging
 from .read_config_files import read_config_files
 from .parse_arguments import parse_arguments
-from .database import connect, delete_process, keepalive, register_process, register_host, get_existing_process_info
-from .utils import is_pid_alive, stop_running_process
+from .database import connect, register_host, register_process, keepalive, delete_process
+from .database import get_worker_process_id
+from .utils import stop_worker_process, is_pid_alive
 
 # Your WorkerFunction should accept the following input parameters:
 #
@@ -62,45 +63,35 @@ def worker(worker_function: WorkerFunction):
     register_host(connection, context.host_id, context.host_name)
 
     # Check if worker is already running
-    existing_process_id: UUID
-    existing_pid: int
-    existing_process_id, existing_pid = get_existing_process_info(connection, context.host_id, context.worker_id)
-    if existing_pid is None:
-        already_running = False
-    elif is_pid_alive(existing_pid):
-        already_running = True
-    else:
-        print(f"Clean-up {context.worker_type} worker with ID {worker_id} and since it is no longer running.")
-        delete_process(connection, existing_process_id)
-        already_running = False
+    existing_process_id: UUID = get_worker_process_id(connection, context.worker_id)
+    already_running = existing_process_id is not None
 
     # Handle command
     if command == 'start':
         if already_running:
-            print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running with PID: {existing_pid}")
+            print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running.")
             sys.exit(1)
         print(f"Starting {context.worker_type} worker with ID {worker_id}.")
         start_worker(worker_function, connection, config, context)
 
     elif command == 'restart':
         if already_running:
-            print(f"Restarting {context.worker_type} worker with ID {worker_id}.")
-            stop_running_process(existing_pid)
-        else:
-            print(f"Starting {context.worker_type} worker with ID {worker_id} (it wasn't running).")
+            print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
+            stop_worker_process(connection, context.worker_id, existing_process_id)
+        print(f"Starting {context.worker_type} worker with ID {worker_id}.")
         start_worker(worker_function, connection, config, context)
 
     elif command == 'stop':
         if already_running:
             print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
-            stop_running_process(existing_pid)
+            stop_worker_process(connection, context.worker_id, existing_process_id)
         else:
             print(f"Cannot stop {context.worker_type} worker with ID {worker_id} since it is not running.")
             sys.exit(1)
 
     elif command == 'status':
         if already_running:
-            print(f"Worker {context.worker_type} with ID {worker_id} is running with PID: {existing_pid}")
+            print(f"Worker {context.worker_type} with ID {worker_id} is running.")
         else:
             print(f"Worker {context.worker_type} with ID {worker_id} is not running.")
 

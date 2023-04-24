@@ -11,6 +11,5 @@ version = "0.0.1"
 dependencies = [
         "psycopg2",
         "python-daemon",
-        "filelock",
-        "lockfile"
+        "requests"
 ]
