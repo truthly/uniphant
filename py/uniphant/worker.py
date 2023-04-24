@@ -45,11 +45,6 @@ def worker(worker_function: WorkerFunction):
     foreground: bool
     command, worker_id, foreground = parse_arguments()
 
-    if foreground:
-        start_worker = run
-    else:
-        start_worker = start_daemon
-
     # Init worker context
     context: WorkerContext = init_worker(worker_id, foreground)
 
@@ -78,14 +73,20 @@ def worker(worker_function: WorkerFunction):
             print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running.")
             sys.exit(1)
         print(f"Starting {context.worker_type} worker with ID {worker_id}.")
-        start_worker(worker_function, connection, config, context)
+        if foreground:
+            run(worker_function, connection, config, context)
+        else:
+            start_daemon(worker_function, connection, config, context)
 
     elif command == 'restart':
         if already_running:
             print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
             stop_worker_process(connection, context.worker_id, existing_process_id)
         print(f"Starting {context.worker_type} worker with ID {worker_id}.")
-        start_worker(worker_function, connection, config, context)
+        if foreground:
+            run(worker_function, connection, config, context)
+        else:
+            start_daemon(worker_function, connection, config, context)
 
     elif command == 'stop':
         if already_running:
