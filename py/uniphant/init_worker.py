@@ -14,6 +14,7 @@ def init_worker(worker_id: UUID, foreground: bool) -> WorkerContext:
     secrets_root = user_home / ".uniphant" / "secrets"
     secret_dir = secrets_root / script_dir.relative_to(root_dir)
     return WorkerContext(
+        current_user=os.getlogin(),
         foreground=foreground,
         host_id=get_or_create_host_id(host_id_file),
         host_id_file=host_id_file,

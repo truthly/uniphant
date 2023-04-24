@@ -57,7 +57,13 @@ def worker(worker_function: WorkerFunction):
     config: Dict[str, str] = read_config_files(context)
 
     # Connect to PostgreSQL database
-    connection: Connection = connect()
+    connection: Connection = connect(
+        dbname=config.get("PGDATABASE", context.current_user),
+        user=config.get("PGUSER", context.current_user),
+        password=config.get("PGPASSWORD", None),
+        host=config.get("PGHOST", "localhost"),
+        port=int(config.get("PGPORT", "5432"))
+    )
 
     # Register host
     register_host(connection, context.host_id, context.host_name)

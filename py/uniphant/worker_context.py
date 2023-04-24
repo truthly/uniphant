@@ -4,6 +4,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class WorkerContext:
+    current_user: str
     foreground: bool
     host_id: UUID
     host_id_file: Path

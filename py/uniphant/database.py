@@ -2,9 +2,20 @@ import psycopg2
 from psycopg2.extensions import connection as Connection
 from uuid import UUID
 from typing import Tuple
+from typing import Optional
 
-def connect() -> Connection:
-    connection = psycopg2.connect()
+def connect(dbname: Optional[str] = None,
+            user: Optional[str] = None,
+            password: Optional[str] = None,
+            host: Optional[str] = None,
+            port: Optional[int] = None) -> Connection:
+    connection = psycopg2.connect(
+        dbname=dbname,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
     connection.autocommit = True
     return connection
 
