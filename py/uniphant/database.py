@@ -1,7 +1,6 @@
 import psycopg2
 from psycopg2.extensions import connection as Connection
 from uuid import UUID
-from typing import Tuple
 from typing import Optional
 
 def connect(dbname: Optional[str] = None,
