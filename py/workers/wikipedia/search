@@ -1,42 +1,53 @@
-#!python3
+#!/usr/bin/env python3
 import requests
 import json
+import html
 import traceback
 from uniphant.worker import worker, should_run
 
 def next(connection, process_id):
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT opentdb.get_trivia_question_next(%s)
+        SELECT id, question FROM wikipedia.search_next(%s)
     """, (str(process_id),))
-    return cursor.fetchone()[0]
+    return cursor.fetchone()
 
 def set_response(connection, id, response):
     connection.cursor().execute("""
-        SELECT opentdb.get_trivia_question_set_response(%s, %s)
+        SELECT wikipedia.search_set_response(%s, %s)
     """, (id, json.dumps(response)))
 
 def set_error(connection, id, error):
     connection.cursor().execute("""
-        SELECT opentdb.get_trivia_question_set_error(%s, %s)
+        SELECT wikipedia.search_set_error(%s, %s)
     """, (id, error))
 
-def get_trivia_question(connection, config, context, logger):
+def search(connection, config, context, logger):
     while should_run(connection, context.process_id, context.foreground):
-        id = next(connection, context.process_id)
+        id, question = next(connection, context.process_id)
         if id is None:
             return
 
         try:
-            logger.info(f'Getting Question for {id}')
+            logger.info(f'Getting Answer for {id}')
 
-            url = 'https://opentdb.com/api.php?amount=1'
-            response = requests.get(url)
+            url = 'https://en.wikipedia.org/w/api.php'
+            params = {
+                'action': 'query',
+                'list': 'search',
+                'format': 'json',
+                'srsearch': html.unescape(question),
+                'utf8': 1,
+                'formatversion': 2,
+                'srlimit': 1,
+            }
+
+            response = requests.get(url, params=params)
             response.raise_for_status()
 
             set_response(connection, id, response.json())
 
-            logger.info(f'Got Question for {id}')
+            logger.info(f'Got Answer for {id}')
 
         except Exception as e:
             tb = traceback.format_exc()
@@ -45,4 +56,4 @@ def get_trivia_question(connection, config, context, logger):
             set_error(connection, id, error)
 
 if __name__ == "__main__":
-    worker(get_trivia_question)
+    worker(search)

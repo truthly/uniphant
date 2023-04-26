@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
+CREATE OR REPLACE FUNCTION keepalive_process(process_id UUID)
 RETURNS BOOLEAN AS
 $$
 DECLARE
@@ -6,7 +6,7 @@ DECLARE
 BEGIN
     UPDATE processes SET
         heartbeat_at = now()
-    WHERE processes.id = keepalive.process_id
+    WHERE processes.id = keepalive_process.process_id
     RETURNING processes.termination_requested
     INTO STRICT termination_requested;
     --

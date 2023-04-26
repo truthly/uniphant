@@ -16,7 +16,8 @@ BEGIN
         id,
         question
     FROM wikipedia.search
-    WHERE wikipedia.search.response_at IS NULL
+    WHERE wikipedia.search.process_id IS NULL
+    AND wikipedia.search.response_at IS NULL
     AND wikipedia.search.error_at IS NULL
     LIMIT 1
     FOR UPDATE SKIP LOCKED;

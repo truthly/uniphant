@@ -11,7 +11,8 @@ BEGIN
     INTO
         id
     FROM opentdb.get_trivia_question
-    WHERE opentdb.get_trivia_question.response_at IS NULL
+    WHERE opentdb.get_trivia_question.process_id IS NULL
+    AND opentdb.get_trivia_question.response_at IS NULL
     AND opentdb.get_trivia_question.error_at IS NULL
     LIMIT 1
     FOR UPDATE SKIP LOCKED;

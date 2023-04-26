@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION get_worker_process_id
+CREATE OR REPLACE FUNCTION get_process
 (
     OUT process_id UUID,
     worker_id UUID
@@ -13,7 +13,7 @@ BEGIN
     (
         SELECT 1
         FROM processes
-        WHERE processes.worker_id = get_worker_process_id.worker_id
+        WHERE processes.worker_id = get_process.worker_id
     )
     THEN
         RETURN;
@@ -23,7 +23,7 @@ BEGIN
         INTO STRICT
             process_id
         FROM processes
-        WHERE processes.worker_id = get_worker_process_id.worker_id;
+        WHERE processes.worker_id = get_process.worker_id;
     END IF;
 END;
 $$ LANGUAGE plpgsql;

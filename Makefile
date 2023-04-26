@@ -74,14 +74,18 @@ SQL_SRC = \
 	TABLES/workers.sql \
 	TABLES/processes.sql \
 	FUNCTIONS/register_host.sql \
+	FUNCTIONS/register_worker.sql \
 	FUNCTIONS/register_process.sql \
-	FUNCTIONS/keepalive.sql \
+	FUNCTIONS/keepalive_process.sql \
 	FUNCTIONS/delete_process.sql \
 	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql \
-	FUNCTIONS/get_worker_process_id.sql \
-	FUNCTIONS/request_process_termination.sql \
+	FUNCTIONS/get_process.sql \
+	FUNCTIONS/terminate_process.sql \
+	FUNCTIONS/start_worker_next.sql \
+	FUNCTIONS/kill_worker_next.sql \
+	FUNCTIONS/ping_worker_next.sql \
 	footer.sql
 
 uniphant--1.6.sql: $(SQL_SRC)
@@ -94,14 +98,18 @@ SQL_SRC = \
 	TABLES/workers.sql \
 	TABLES/processes.sql \
 	FUNCTIONS/register_host.sql \
+	FUNCTIONS/register_worker.sql \
 	FUNCTIONS/register_process.sql \
-	FUNCTIONS/keepalive.sql \
+	FUNCTIONS/keepalive_process.sql \
 	FUNCTIONS/delete_process.sql \
 	FUNCTIONS/get_or_create_worker_id.sql \
 	FUNCTIONS/scale_up.sql \
 	FUNCTIONS/scale_down.sql \
-	FUNCTIONS/get_worker_process_id.sql \
-	FUNCTIONS/request_process_termination.sql
+	FUNCTIONS/get_process.sql \
+	FUNCTIONS/terminate_process.sql \
+	FUNCTIONS/start_worker_next.sql \
+	FUNCTIONS/kill_worker_next.sql \
+	FUNCTIONS/ping_worker_next.sql
 
 uniphant--1.5--1.6.sql: $(SQL_SRC)
 	cat $^ > $@

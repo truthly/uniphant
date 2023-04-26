@@ -1,12 +1,12 @@
 import sys
 import logging
-from .worker_context import WorkerContext
+from .worker_info import WorkerInfo
 
-def setup_logging(context: WorkerContext) -> logging.Logger:
-    log_dir = context.root_dir / "log" / context.worker_type
+def setup_logging(info: WorkerInfo) -> logging.Logger:
+    log_dir = info.root_dir / "log" / info.worker_type
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / (str(context.worker_id) + ".log")
-    logger_name = str(context.worker_id) + " " + context.worker_type
+    log_file = log_dir / (str(info.worker_id) + ".log")
+    logger_name = str(info.worker_id) + " " + info.worker_type
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -14,7 +14,7 @@ def setup_logging(context: WorkerContext) -> logging.Logger:
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-    if context.foreground:
+    if not info.daemonize:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_handler.setFormatter(formatter)

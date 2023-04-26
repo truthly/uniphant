@@ -4,8 +4,8 @@ export PGUSER=uniphant
 
 # List of worker scripts
 scripts=(
-    "workers/opentdb/get_trivia_question.py"
-    "workers/wikipedia/search.py"
+    "opentdb/get_trivia_question"
+    "wikipedia/search"
 )
 
 # Function to generate a new host_id if needed and register it
@@ -23,7 +23,7 @@ generate_and_register_host_id() {
 extract_worker_type() {
     script_path=$1
     root_dir="workers"
-    worker_type=$(echo "${script_path#$root_dir/}" | sed 's/.py$//' | tr '/' '.')
+    worker_type=$(echo "${script_path#$root_dir/}" | tr '/' '.')
     echo "$worker_type"
 }
 

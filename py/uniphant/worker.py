@@ -1,25 +1,21 @@
 # Standard library imports
-import os
-import sys
-import time
-import traceback
+from os import getpid
+from sys import exit
+from time import sleep
+from traceback import format_exc
 from typing import Callable, Dict
 from uuid import UUID
-
-# Related third-party imports
-import daemon
-from psycopg2.extensions import connection as Connection
 from logging import Logger
 
+# Related third-party imports
+from daemon import DaemonContext
+from psycopg2.extensions import connection as Connection
+
 # Local application/library-specific imports
-from .worker_context import WorkerContext
-from .init_worker import init_worker
-from .setup_logging import setup_logging
+from .worker_info import worker_info, WorkerInfo
 from .read_config_files import read_config_files
-from .parse_arguments import parse_arguments
-from .database import connect, register_host, register_process, keepalive, delete_process
-from .database import get_worker_process_id
-from .utils import stop_worker_process, is_pid_alive
+from .database import connect_database, register_worker, register_process, keepalive_process, delete_process, get_process
+from .setup_logging import setup_logging
 
 # Your WorkerFunction should accept the following input parameters:
 #
@@ -29,124 +25,71 @@ from .utils import stop_worker_process, is_pid_alive
 #   config: Dict[str, str]
 #       dictionary containing configuration values (key-value pairs)
 # 
-#   context: WorkerContext
-#       immutable/frozen WorkerContext struct holding the worker's contextual information
+#   info: WorkerInfo
+#       immutable struct with various worker fields
 #
 #   logger: logging.Logger
 #       object for logging messages
 WorkerFunction = Callable[
-    [Connection, Dict[str, str], WorkerContext, Logger],
+    [Connection, Dict[str, str], WorkerInfo, Logger],
     None
 ]
 
 def worker(worker_function: WorkerFunction):
-    command: str
-    worker_id: UUID
-    foreground: bool
-    command, worker_id, foreground = parse_arguments()
+    # Derives worker information
+    info: WorkerInfo = worker_info()
 
-    # Init worker context
-    context: WorkerContext = init_worker(worker_id, foreground)
+    # Read uniphant.conf and secrets.conf config files in all directories
+    config: Dict[str, str] = read_config_files(info)
 
-    # Setup config
-    config: Dict[str, str] = read_config_files(context)
+    # Connect to the PostgreSQL database shard
+    connection: Connection = connect_database(config)
 
-    # Connect to PostgreSQL database
-    connection: Connection = connect(
-        dbname=config.get("PGDATABASE", "uniphant"),
-        user=config.get("PGUSER", "uniphant"),
-        password=config.get("PGPASSWORD", None),
-        host=config.get("PGHOST", "localhost"),
-        port=int(config.get("PGPORT", "5432"))
-    )
-
-    # Register host
-    register_host(connection, context.host_id, context.host_name)
+    # Register worker
+    register_worker(connection, info.worker_id, info.worker_type, info.host_id, info.host_name)
 
     # Check if worker is already running
-    existing_process_id: UUID = get_worker_process_id(connection, context.worker_id)
-    already_running = existing_process_id is not None
+    if get_process(connection, info.worker_id) is not None:
+        print(f"Cannot start {info.worker_type} worker with ID {info.worker_id} since it is already running.")
+        exit(1)
 
-    # Handle command
-    if command == 'start':
-        if already_running:
-            print(f"Cannot start {context.worker_type} worker with ID {worker_id} since it is already running.")
-            sys.exit(1)
-        print(f"Starting {context.worker_type} worker with ID {worker_id}.")
-        if foreground:
-            run(worker_function, connection, config, context)
-        else:
-            start_daemon(worker_function, connection, config, context)
-
-    elif command == 'restart':
-        if already_running:
-            print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
-            stop_worker_process(connection, context.worker_id, existing_process_id)
-        print(f"Starting {context.worker_type} worker with ID {worker_id}.")
-        if foreground:
-            run(worker_function, connection, config, context)
-        else:
-            start_daemon(worker_function, connection, config, context)
-
-    elif command == 'stop':
-        if already_running:
-            print(f"Stopping {context.worker_type} worker with ID {worker_id}.")
-            stop_worker_process(connection, context.worker_id, existing_process_id)
-        else:
-            print(f"Cannot stop {context.worker_type} worker with ID {worker_id} since it is not running.")
-            sys.exit(1)
-
-    elif command == 'status':
-        if already_running:
-            print(f"Worker {context.worker_type} with ID {worker_id} is running.")
-        else:
-            print(f"Worker {context.worker_type} with ID {worker_id} is not running.")
-
+    # Start worker
+    print(f"Starting {info.worker_type} worker with ID: {info.worker_id}")
+    if info.daemonize:
+        # Disconnect since daemon will fork and child cannot share database connection with parent.
+        connection.close()
+        start_daemon(worker_function, config, info)
     else:
-        raise ValueError("Invalid command. Should have been caught by the argument parser!")
+        run(worker_function, connection, config, info)
 
 def start_daemon(worker_function: WorkerFunction,
-                 connection: Connection,
                  config: Dict[str, str],
-                 context: WorkerContext):
-    # Disconnect since daemon will fork and child cannot share database
-    # connection with parent.
-    connection.close()
-    connection = None
-    with daemon.DaemonContext(working_directory=str(context.worker_dir)):
-        run(worker_function, connection, config, context)
+                 info: WorkerInfo):
+    with DaemonContext(working_directory=str(info.worker_dir)):
+        connection = connect_database(config)
+        run(worker_function, connection, config, info)
 
 def run(worker_function: WorkerFunction,
         connection: Connection,
         config: Dict[str, str],
-        context: WorkerContext):
-    if connection is None:
-        connection = connect()
-    logger: Logger = setup_logging(context)
-    pid = os.getpid()
+        info: WorkerInfo):
+    logger: Logger = setup_logging(info)
+    pid = getpid()
     try:
         logger.info(f"Started PID: {pid}")
-        register_process(connection, context.process_id, context.worker_id, pid)
-        while should_run(connection, context.process_id, context.foreground):
-            worker_function(connection, config, context, logger)
-            time.sleep(1)
+        register_process(connection, info.process_id, info.worker_id, pid)
+        while should_run(connection, info.process_id):
+            worker_function(connection, config, info, logger)
+            sleep(1)
     except Exception as e:
-        tb = traceback.format_exc()
+        tb = format_exc()
         error = f'{e}\n{tb}'
         logger.error(error)
     finally:
         logger.info(f"Stopped PID: {pid}")
-        delete_process(connection, context.process_id)
+        delete_process(connection, info.process_id)
         connection.close()
 
-def should_run(connection: Connection, process_id: UUID, foreground: bool) -> bool:
-    # Stop if termination has been requested, via the database
-    if not keepalive(connection, process_id):
-        return False
-
-    # Stop if running in foreground and the parent process has died
-    if foreground and not is_pid_alive(os.getppid()):
-        return False 
-
-    # Otherwise the process should continue running
-    return True
+def should_run(connection: Connection, process_id: UUID) -> bool:
+    # If termination has been requested keepalive_process() will return false.
+    return keepalive_process(connection, process_id)

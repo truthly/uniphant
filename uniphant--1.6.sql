@@ -782,6 +782,7 @@ CREATE TABLE workers
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     host_id UUID NOT NULL,
     worker_type TEXT NOT NULL,
+    command TEXT,
 
     PRIMARY KEY (id),
     FOREIGN KEY (host_id) REFERENCES hosts,
@@ -833,6 +834,54 @@ BEGIN
     RETURN;
 END;
 $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION register_worker
+(
+    worker_id UUID,
+    worker_type TEXT,
+    host_id UUID,
+    host_name TEXT
+)
+RETURNS VOID AS
+$$
+DECLARE
+    ok BOOLEAN;
+BEGIN
+    PERFORM register_host(host_id, host_name);
+
+    INSERT INTO worker_types
+        (worker_type)
+    VALUES
+        (worker_type)
+    ON CONFLICT DO NOTHING;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM workers WHERE workers.id = register_worker.worker_id
+    )
+    THEN
+        IF EXISTS
+        (
+            SELECT 1 FROM workers
+            WHERE workers.id = register_worker.worker_id
+            AND workers.worker_type = register_worker.worker_type
+            AND workers.host_id = register_worker.host_id
+        )
+        THEN
+            RETURN;
+        ELSE
+            RAISE EXCEPTION 'Inconsistent data for existing worker with id %', worker_id;
+        END IF;
+    END IF;
+
+    INSERT INTO workers
+        (id, host_id, worker_type)
+    VALUES
+        (worker_id, host_id, worker_type)
+    RETURNING TRUE INTO STRICT ok;
+
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION register_process
 (
     process_id UUID,
@@ -855,7 +904,7 @@ BEGIN
     RETURN;
 END;
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION keepalive(process_id UUID)
+CREATE OR REPLACE FUNCTION keepalive_process(process_id UUID)
 RETURNS BOOLEAN AS
 $$
 DECLARE
@@ -863,7 +912,7 @@ DECLARE
 BEGIN
     UPDATE processes SET
         heartbeat_at = now()
-    WHERE processes.id = keepalive.process_id
+    WHERE processes.id = keepalive_process.process_id
     RETURNING processes.termination_requested
     INTO STRICT termination_requested;
     --
@@ -996,7 +1045,7 @@ AS $$
     WHERE workers_to_remove.worker_id = workers.id
     RETURNING id
 $$;
-CREATE OR REPLACE FUNCTION get_worker_process_id
+CREATE OR REPLACE FUNCTION get_process
 (
     OUT process_id UUID,
     worker_id UUID
@@ -1011,7 +1060,7 @@ BEGIN
     (
         SELECT 1
         FROM processes
-        WHERE processes.worker_id = get_worker_process_id.worker_id
+        WHERE processes.worker_id = get_process.worker_id
     )
     THEN
         RETURN;
@@ -1021,11 +1070,11 @@ BEGIN
         INTO STRICT
             process_id
         FROM processes
-        WHERE processes.worker_id = get_worker_process_id.worker_id;
+        WHERE processes.worker_id = get_process.worker_id;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION request_process_termination(process_id UUID)
+CREATE OR REPLACE FUNCTION terminate_process(process_id UUID)
 RETURNS VOID AS
 $$
 DECLARE
@@ -1033,12 +1082,131 @@ DECLARE
 BEGIN
     UPDATE processes
     SET termination_requested = TRUE
-    WHERE processes.id = request_process_termination.process_id
+    WHERE processes.id = terminate_process.process_id
     RETURNING TRUE INTO STRICT ok;
 
     RETURN;
 END;
 $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION start_worker_next
+(
+    OUT worker_id UUID,
+    OUT worker_type TEXT,
+    host_id UUID
+)
+RETURNS RECORD
+LANGUAGE plpgsql AS
+$$
+DECLARE
+    ok BOOLEAN;
+BEGIN
+    SELECT
+        workers.id,
+        workers.worker_type
+    INTO
+        worker_id,
+        worker_type
+    FROM workers
+    WHERE workers.host_id = start_worker_next.host_id
+    AND workers.command = 'start'
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    UPDATE workers
+    SET command = NULL
+    WHERE workers.id = start_worker_next.worker_id
+    RETURNING TRUE INTO STRICT ok;
+
+    RETURN;
+END
+$$;
+CREATE OR REPLACE FUNCTION kill_worker_next
+(
+    OUT worker_id UUID,
+    OUT worker_type TEXT,
+    OUT command TEXT,
+    OUT pid INTEGER,
+    host_id UUID
+)
+RETURNS RECORD
+LANGUAGE plpgsql AS
+$$
+DECLARE
+    ok BOOLEAN;
+BEGIN
+    SELECT
+        workers.id,
+        workers.worker_type,
+        workers.command,
+        processes.pid
+    INTO
+        worker_id,
+        worker_type,
+        command,
+        pid
+    FROM workers
+    JOIN processes ON processes.worker_id = workers.id
+    WHERE workers.host_id = kill_worker_next.host_id
+    AND workers.command IN ('term','kill')
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    UPDATE workers
+    SET command = NULL
+    WHERE workers.id = kill_worker_next.worker_id
+    RETURNING TRUE INTO STRICT ok;
+
+    RETURN;
+END
+$$;
+CREATE OR REPLACE FUNCTION ping_worker_next
+(
+    OUT worker_id UUID,
+    OUT worker_type TEXT,
+    OUT process_id UUID,
+    OUT pid INTEGER,
+    host_id UUID
+)
+RETURNS RECORD
+LANGUAGE plpgsql AS
+$$
+DECLARE
+    ok BOOLEAN;
+BEGIN
+    SELECT
+        workers.id,
+        workers.worker_type,
+        processes.id,
+        processes.pid
+    INTO
+        worker_id,
+        worker_type,
+        process_id,
+        pid
+    FROM workers
+    JOIN processes ON processes.worker_id = workers.id
+    WHERE workers.host_id = ping_worker_next.host_id
+    AND workers.command = 'ping'
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    UPDATE workers
+    SET command = NULL
+    WHERE workers.id = ping_worker_next.worker_id
+    RETURNING TRUE INTO STRICT ok;
+
+    RETURN;
+END
+$$;
 --
 -- register all functions in the api schema as resources
 --

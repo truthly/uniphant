@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+from os import kill
+from signal import SIGTERM, SIGKILL
+from uniphant.worker import worker
+from uniphant.database import kill_worker_next
+
+def kill_worker(connection, config, info, logger):
+    while True:
+        result = kill_worker_next(connection, info.host_id)
+        if result is None:
+            return
+        worker_id, worker_type, command, pid = result
+        try:
+            if command == "term":
+                logger.info(f"Terminating {worker_type} worker with ID {worker_id} and PID {pid}")
+                kill(pid, SIGTERM)
+            elif command == "kill":
+                logger.info(f"Killing {worker_type} worker with ID {worker_id} and PID {pid}")
+                kill(pid, SIGKILL)
+        except Exception as e:
+            logger.info(f"Error {command} {worker_type} worker with ID {worker_id} and PID {pid}: {e}")
+
+if __name__ == "__main__":
+    worker(kill_worker)

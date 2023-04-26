@@ -2,3 +2,4 @@ log
 pid
 .host_id
 .lock
+.manager_worker_id

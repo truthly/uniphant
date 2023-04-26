@@ -13,3 +13,4 @@ simplelog = "0.12"
 postgres = { version = "0.19", features = ["with-uuid-1"] }
 daemonize = "0.5"
 log = "0.4"
+postgres_query = "0.3"

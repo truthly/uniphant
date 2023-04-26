@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+from pathlib import Path
+from subprocess import Popen
+from uniphant.worker import worker
+from uniphant.database import start_worker_next
+
+def start_worker(connection, config, info, logger):
+    while True:
+        result = start_worker_next(connection, info.host_id)
+        if result is None:
+            return
+        worker_id, worker_type = result
+        worker_path = Path(info.root_dir, *worker_type.split('.'))
+        try:
+            logger.info(f"Starting {worker_type} worker with ID: {worker_id}")
+            Popen([worker_path, worker_id, '--daemonize'])
+        except Exception as e:
+            logger.info(f"Error starting {worker_type} worker with ID {worker_id}: {e}")
+
+if __name__ == "__main__":
+    worker(start_worker)

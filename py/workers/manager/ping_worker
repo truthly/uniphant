@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+from os import kill
+from uniphant.worker import worker
+from uniphant.database import ping_worker_next, delete_process
+from uniphant.utils import is_pid_alive
+
+def monitor_worker(connection, config, info, logger):
+    while True:
+        result = ping_worker_next(connection, info.host_id)
+        if result is None:
+            return
+        worker_id, worker_type, process_id, pid = result
+        try:
+            logger.info(f"Pinging {worker_type} worker with ID {worker_id} and PID {pid}")
+            if is_pid_alive(pid):
+                logger.info(f"Alive, the {worker_type} worker with ID {worker_id} and PID {pid} is")
+            else:
+                logger.info(f"Dead, the {worker_type} worker with ID {worker_id} and PID {pid} is")
+                delete_process(connection, process_id)
+
+        except Exception as e:
+            logger.info(f"Error {worker_type} worker with ID {worker_id} and PID {pid}: {e}")
+
+if __name__ == "__main__":
+    worker(monitor_worker)
