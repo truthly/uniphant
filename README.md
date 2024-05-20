@@ -77,9 +77,7 @@ createuser postgrest -I
 # pg-cbor:
 git clone https://github.com/truthly/pg-cbor.git
 (cd pg-cbor && make && sudo make install && make installcheck)
-# pg-ecdsa:
-git clone https://github.com/truthly/pg-ecdsa.git
-(cd pg-ecdsa && make && sudo make install && make installcheck)
+# Follow instructions at: https://github.com/joelonsql/pg_ecdsa_verify
 # pg-webauthn:
 git clone https://github.com/truthly/pg-webauthn.git
 (cd pg-webauthn && make && sudo make install && make installcheck)
